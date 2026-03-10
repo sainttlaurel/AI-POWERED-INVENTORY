@@ -63,23 +63,6 @@ The chatbot can assist with:
 
 ---
 
-## Installation
-
-1. Place the project inside your server directory:
-C:\xampp\htdocs\inventory-system
-
-
-2. Run the installer:
-http://localhost/inventory-system/setup.php
-
-
-3. Login using the default credentials:
-Username: admin
-Password: admin123
-
-
----
-
 ## Project Structure
 
 inventory-system/
