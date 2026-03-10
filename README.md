@@ -54,13 +54,6 @@ The chatbot can assist with:
 - PHP (OOP)
 - MySQL
 
-### Security
-- Bcrypt password hashing
-- CSRF protection
-- SQL injection prevention
-- XSS protection
-- Secure session management
-
 ---
 
 ## Project Structure
