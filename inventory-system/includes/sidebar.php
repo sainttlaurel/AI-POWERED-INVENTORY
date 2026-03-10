@@ -1,19 +1,29 @@
-<nav class="col-md-3 col-lg-2 d-md-block sidebar">
+<nav class="sidebar">
     <div class="position-sticky pt-3">
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link" href="dashboard.php">
-                    <i class="bi bi-house-door"></i> Dashboard
+                    <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="products.php">
-                    <i class="bi bi-box-seam"></i> Products
+                    <i class="bi bi-boxes"></i> Products
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="categories.php">
+                    <i class="bi bi-tags"></i> Categories
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="inventory.php">
-                    <i class="bi bi-arrow-left-right"></i> Inventory
+                    <i class="bi bi-clipboard-data"></i> Inventory
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reservations.php">
+                    <i class="bi bi-bookmark-check"></i> Reservations
                 </a>
             </li>
             <li class="nav-item">
@@ -23,7 +33,7 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="reports.php">
-                    <i class="bi bi-file-earmark-text"></i> Reports
+                    <i class="bi bi-file-earmark-bar-graph"></i> Reports
                 </a>
             </li>
         </ul>

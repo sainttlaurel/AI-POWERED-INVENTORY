@@ -79,22 +79,25 @@ $products = $db->query("SELECT id, product_name, stock_quantity
     <title>Inventory Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=<?php echo time(); ?>">
 </head>
 <body>
     <?php include 'includes/navbar.php'; ?>
     
     <div class="container-fluid">
-        <div class="row">
-            <?php include 'includes/sidebar.php'; ?>
-            
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="sidebar-overlay"></div>
+        <?php include 'includes/sidebar.php'; ?>
+        
+        <main>
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2"><i class="bi bi-arrow-left-right"></i> Inventory Management</h1>
                     <div>
-                        <a href="reports.php?type=stock" class="btn btn-outline-secondary">
-                            <i class="bi bi-printer"></i> Print Report
-                        </a>
+                        <button onclick="printInventory()" class="btn btn-outline-secondary">
+                            <i class="bi bi-printer"></i> Print
+                        </button>
+                        <button onclick="exportInventoryCSV()" class="btn btn-outline-success">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+                        </button>
                         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#stockInModal">
                             <i class="bi bi-arrow-down-circle"></i> Stock In
                         </button>
@@ -137,8 +140,7 @@ $products = $db->query("SELECT id, product_name, stock_quantity
                         </table>
                     </div>
                 </div>
-            </main>
-        </div>
+        </main>
     </div>
 
     <div class="modal fade" id="stockInModal" tabindex="-1">
@@ -217,6 +219,8 @@ $products = $db->query("SELECT id, product_name, stock_quantity
 
     <?php include 'includes/chatbot.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/chatbot.js"></script>
+    <script src="js/chatbot.js?v=<?php echo time(); ?>"></script>
+    <script src="js/export.js?v=<?php echo time(); ?>"></script>
+    <script src="js/mobile.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

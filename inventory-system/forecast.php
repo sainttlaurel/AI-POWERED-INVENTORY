@@ -27,10 +27,10 @@ $top_products = $db->query("SELECT p.product_name, SUM(s.quantity) as total_sold
     <?php include 'includes/navbar.php'; ?>
     
     <div class="container-fluid">
-        <div class="row">
-            <?php include 'includes/sidebar.php'; ?>
-            
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="sidebar-overlay"></div>
+        <?php include 'includes/sidebar.php'; ?>
+        
+        <main>
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2"><i class="bi bi-graph-up-arrow"></i> AI Forecast Analytics</h1>
                     <a href="reports.php?type=low_stock" class="btn btn-outline-secondary">
@@ -92,8 +92,7 @@ $top_products = $db->query("SELECT p.product_name, SUM(s.quantity) as total_sold
                         </table>
                     </div>
                 </div>
-            </main>
-        </div>
+        </main>
     </div>
 
     <?php include 'includes/chatbot.php'; ?>
@@ -128,5 +127,6 @@ $top_products = $db->query("SELECT p.product_name, SUM(s.quantity) as total_sold
         });
     </script>
     <script src="js/chatbot.js"></script>
+    <script src="js/mobile.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

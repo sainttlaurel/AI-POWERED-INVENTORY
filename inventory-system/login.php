@@ -47,34 +47,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Inventory System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .login-container {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            text-align: center;
+            padding: 2rem;
+            margin: -1px -1px 0 -1px;
+        }
+        .login-body {
+            padding: 2rem;
+        }
+        .login-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .login-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+    </style>
 </head>
-<body class="bg-light">
-    <div class="container">
-        <div class="row justify-content-center align-items-center min-vh-100">
-            <div class="col-md-5">
-                <div class="card shadow">
-                    <div class="card-body p-5">
-                        <h2 class="text-center mb-4">🏢 Inventory System</h2>
-                        <?php if ($error): ?>
-                            <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
-                        <?php endif; ?>
-                        <form method="POST">
-                            <div class="mb-3">
-                                <label class="form-label">Username</label>
-                                <input type="text" name="username" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Password</label>
-                                <input type="password" name="password" class="form-control" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Login</button>
-                        </form>
-                        <div class="text-center mt-3">
-                            <small class="text-muted">Default: admin / admin123</small>
+<body>
+    <div class="login-container">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-5 col-lg-4">
+                    <div class="card login-card">
+                        <div class="login-header">
+                            <h2 class="login-title">
+                                <i class="bi bi-boxes"></i>
+                                Inventory System
+                            </h2>
+                            <p class="login-subtitle">Modern Inventory Management</p>
                         </div>
-                        <div class="text-center mt-2">
-                            <a href="setup.php" class="btn btn-link btn-sm">Run Database Setup</a>
+                        <div class="login-body">
+                            <?php if ($error): ?>
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <?php echo htmlspecialchars($error); ?>
+                                </div>
+                            <?php endif; ?>
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="bi bi-person"></i> Username
+                                    </label>
+                                    <input type="text" name="username" class="form-control" required 
+                                           placeholder="Enter your username">
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label">
+                                        <i class="bi bi-lock"></i> Password
+                                    </label>
+                                    <input type="password" name="password" class="form-control" required 
+                                           placeholder="Enter your password">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                                </button>
+                            </form>
+                            <div class="text-center mt-4">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i>
+                                    Default credentials: <strong>admin</strong> / <strong>admin123</strong>
+                                </small>
+                            </div>
                         </div>
                     </div>
                 </div>

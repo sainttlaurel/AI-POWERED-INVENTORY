@@ -65,12 +65,12 @@ if ($report_type === 'sales') {
     </div>
     
     <div class="container-fluid">
-        <div class="row">
-            <div class="no-print">
-                <?php include 'includes/sidebar.php'; ?>
-            </div>
-            
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="sidebar-overlay"></div>
+        <div class="no-print">
+            <?php include 'includes/sidebar.php'; ?>
+        </div>
+        
+        <main>
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom no-print">
                     <h1 class="h2"><i class="bi bi-file-earmark-text"></i> Reports</h1>
                     <div>
@@ -139,7 +139,7 @@ if ($report_type === 'sales') {
                                             <td><?php echo htmlspecialchars($row['product_name']); ?></td>
                                             <td><?php echo htmlspecialchars($row['barcode']); ?></td>
                                             <td><?php echo $row['quantity']; ?></td>
-                                            <td>$<?php echo number_format($row['total_price'], 2); ?></td>
+                                            <td>₱<?php echo number_format($row['total_price'], 2); ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -147,7 +147,7 @@ if ($report_type === 'sales') {
                                     <tr class="fw-bold">
                                         <td colspan="3">TOTAL</td>
                                         <td><?php echo $total_quantity; ?></td>
-                                        <td>$<?php echo number_format($total_sales, 2); ?></td>
+                                        <td>₱<?php echo number_format($total_sales, 2); ?></td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -171,10 +171,10 @@ if ($report_type === 'sales') {
                                             <td><?php echo htmlspecialchars($row['product_name']); ?></td>
                                             <td><?php echo htmlspecialchars($row['category_name']); ?></td>
                                             <td><?php echo htmlspecialchars($row['supplier_name']); ?></td>
-                                            <td>$<?php echo number_format($row['price'], 2); ?></td>
+                                            <td>₱<?php echo number_format($row['price'], 2); ?></td>
                                             <td><?php echo $row['stock_quantity']; ?></td>
                                             <td><?php echo $row['reorder_level']; ?></td>
-                                            <td>$<?php echo number_format($row['price'] * $row['stock_quantity'], 2); ?></td>
+                                            <td>₱<?php echo number_format($row['price'] * $row['stock_quantity'], 2); ?></td>
                                             <td>
                                                 <?php if ($row['stock_quantity'] == 0): ?>
                                                     <span class="badge bg-danger">Out of Stock</span>
@@ -190,7 +190,7 @@ if ($report_type === 'sales') {
                                 <tfoot>
                                     <tr class="fw-bold">
                                         <td colspan="6">TOTAL STOCK VALUE</td>
-                                        <td colspan="2">$<?php echo number_format($total_stock_value, 2); ?></td>
+                                        <td colspan="2">₱<?php echo number_format($total_stock_value, 2); ?></td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -222,8 +222,7 @@ if ($report_type === 'sales') {
                         <?php endif; ?>
                     </div>
                 </div>
-            </main>
-        </div>
+        </main>
     </div>
 
     <div class="no-print">
@@ -255,5 +254,6 @@ if ($report_type === 'sales') {
         }
     </script>
     <script src="js/chatbot.js"></script>
+    <script src="js/mobile.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>
