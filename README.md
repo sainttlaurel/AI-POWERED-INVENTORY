@@ -95,7 +95,6 @@ inventory-system/
 
 ## Future Improvements
 
-- Integration with external AI services (OpenAI or Gemini)
 - Email alerts for low stock
 - Barcode scanning support
 - Multi-warehouse inventory management
