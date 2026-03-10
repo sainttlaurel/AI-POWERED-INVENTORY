@@ -138,7 +138,7 @@ Basic chatbot that can:
 
 ## Notes
 
-This was made for a school project so it's not perfect. Some things could be better but it works for what it needs to do.
+This was made for a just project so it's not perfect. Some things could be better but it works for what it needs to do.
 
 The forecasting is pretty basic - just calculates averages and estimates. The chatbot uses simple pattern matching, nothing fancy.
 
@@ -155,3 +155,4 @@ Do whatever you want with it. It's just a project.
 ---
 
 Made with PHP and MySQL. Took way longer than it should have.
+
