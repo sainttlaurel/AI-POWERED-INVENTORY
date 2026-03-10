@@ -1,95 +1,75 @@
 # AI-Powered Inventory Management System
 
-A modern full-stack inventory management system built with PHP, MySQL, and Bootstrap.  
-The system includes AI-based forecasting and a chatbot assistant that provides inventory insights and demand predictions.
+A web-based inventory management system built with PHP and MySQL. Features include product management, stock tracking, sales reports, and a simple chatbot for quick queries.
 
----
+--- 
 
 ## Features
 
-- Secure authentication (Admin and Staff roles)
-- Real-time dashboard with inventory statistics
-- Product management with image upload
-- Stock In and Stock Out tracking
-- Inventory transaction logs
+- Secure authentication (Admin & Staff roles)
+- Real-time dashboard with analytics and stock alerts
+- Product and category management with image upload
+- Stock In / Stock Out tracking with transaction logs
+- Reservation system with automatic stock updates
 - AI demand forecasting and stock predictions
-- Chatbot assistant for inventory queries
-- Sales, stock, and low stock reports
-- CSV export and printable reports
+- Smart chatbot for inventory insights
+- Sales, inventory, and analytics reports with charts
+- CSV export and print-friendly reports
 
----
-
-## AI Capabilities
-
-- Average daily sales calculation
-- Demand prediction
-- Stock depletion forecasting
-- Smart reorder suggestions
-- Demand analytics charts
-
----
-
-## Chatbot Queries
-
-The chatbot can assist with:
-
-- Checking low stock products
-- Viewing top selling products
-- Predicting inventory demand
-- Counting available products
-- Identifying out-of-stock items
-
----
+--- 
 
 ## Tech Stack
 
-### Frontend
-- HTML5
-- CSS3
-- JavaScript
-- Bootstrap 5
-- Chart.js
+**Frontend:** HTML, CSS, JavaScript, Bootstrap, Chart.js  
+**Backend:** PHP (OOP), MySQL  
+**Security:** CSRF protection, prepared statements, XSS prevention
 
-### Backend
-- PHP (OOP)
-- MySQL
+## Installation
 
----
+# bash
+git clone https://github.com/yourusername/inventory-system.git
+cd inventory-system
 
-## Project Structure
+Login:
+http://localhost/inventory-system/login.php
+
+Username: admin
+Password: admin123
+
+--- 
+
+#Project Structure
 
 inventory-system/
-│
-├── config/
-├── includes/
-├── ai/
-├── css/
-├── js/
-├── uploads/
-│
+├── config/          # Database configuration
+├── includes/        # Reusable components
+├── ai/              # AI forecasting & chatbot
+├── css/js/          # Frontend assets
+├── uploads/         # Product images
 ├── dashboard.php
 ├── products.php
+├── categories.php
+├── reservations.php
 ├── inventory.php
-├── forecast.php
 ├── reports.php
-└── setup.php
+└── forecast.php
+
+--- 
+
+#Future Improvements
+
+- Email notifications for low stock
+- Multi-warehouse support
+- Multi-location support
+- Barcode scanning
+- Mobile version
+- Advanced analytics
 
 ---
 
-## Security
-
-- Role-based authentication
-- Secure password hashing
-- CSRF token validation
-- SQL injection protection
-- XSS input sanitization
-
----
-
-## Future Improvements
-
-- Email alerts for low stock
-- Barcode scanning support
-- Multi-warehouse inventory management
-- Mobile application
-- Advanced analytics and reporting
+# Contributing 
+1. Fork the repository
+2. Create feature branch (git checkout -b feature/AmazingFeature)
+3. Commit changes (git commit -m 'Add AmazingFeature')
+4. Push to branch (git push origin feature/AmazingFeature)
+5. Open Pull Request
