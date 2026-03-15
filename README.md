@@ -165,6 +165,34 @@ Setup creates these tables:
 - `forecast`
 - `predict stock depletion`
 
+## Screenshots (because pics or it didn't happen)
+
+### Dashboard - Clean & Modern
+![Dashboard](screenshots/dashboard.png)
+*Main dashboard with stats cards and clean white design. Way better than the original mess.*
+
+### Modern Chatbot Interface
+![Chatbot](screenshots/chatbot.png)
+*Glassmorphism chatbot with floating action button. Actually looks professional now.*
+
+### AI Forecasting Dashboard
+![Forecasting](screenshots/forecasting.png)
+*Advanced forecasting with charts and predictions. The math actually works lol.*
+
+### Products with Profit Tracking
+![Products](screenshots/products.png)
+*Product management with profit calculations and color-coded margins.*
+
+### Mobile Responsive Design
+![Mobile](screenshots/mobile.png)
+*Works on phones too. Mobile-first design finally makes sense.*
+
+### Profit Analytics
+![Profit Analytics](screenshots/profit-analytics.png)
+*Profit performance dashboard in user management. Numbers go brrr.*
+
+*Note: Screenshots might be outdated if I keep tweaking the UI (which I probably will).*
+
 ## Testing
 
 Use `test_chatbot.php` to check if everything works:
