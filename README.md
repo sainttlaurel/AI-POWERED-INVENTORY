@@ -28,7 +28,6 @@ A modern inventory management system built with **PHP, MySQL, and Bootstrap** fe
 - git clone: https://github.com/sainttlaurel/AI-POWERED-INVENTORY.git
 
 - Move the project to your `htdocs` folder
-- Run `php setup_advanced_forecasting.php`
 - Open `http://localhost/inventory-system/`
 
 ---
