@@ -50,7 +50,7 @@ Password: admin123
 
 ## Notes
 
-This started as a **simple CRUD inventory project for a web dev class**, but I kept adding features until it turned into a full system with forecasting and a chatbot.
+This started as a **simple CRUD inventory project for a wasting time**, but I kept adding features until it turned into a full system with forecasting and a chatbot.
 
 Some parts could probably be refactored, but it works and was a great learning project.
 
