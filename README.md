@@ -85,6 +85,7 @@ inventory-system/
 ├── uploads/                  - product images
 ├── api/                      - API endpoints
 ├── logs/                     - error logs
+├── screenshots/              - UI screenshots for README
 ├── dashboard.php             - main dashboard (redesigned)
 ├── products.php              - product management (with profits)
 ├── inventory.php             - stock management
@@ -191,7 +192,7 @@ Setup creates these tables:
 ![Profit Analytics](screenshots/profit-analytics.png)
 *Profit performance dashboard in user management. Numbers go brrr.*
 
-*Note: Screenshots might be outdated if I keep tweaking the UI (which I probably will).*
+*Note: Screenshots might be outdated if I keep tweaking the UI (which I probably will). To add new screenshots, just drop PNG files in the `/screenshots/` folder and update the paths above.*
 
 ## Testing
 
