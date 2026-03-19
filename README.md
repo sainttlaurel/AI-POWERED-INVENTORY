@@ -40,8 +40,7 @@ Password: admin123
 ---
 
 ## Example Chatbot Commands
-- check stock laptop
-- reserve 5 123
+- check stock 
 - show low stock products
 - top selling products
 - today's sales report
