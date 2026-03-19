@@ -692,10 +692,13 @@ try {
                 <div class="btn-toolbar mb-2 mb-md-0">
                     <div class="btn-group me-2">
                         <button onclick="window.print()" class="btn btn-outline-secondary">
-                            <i class="bi bi-printer"></i> Print Report
+                            <i class="bi bi-printer me-2"></i> Print Report
                         </button>
                         <button onclick="exportToCSV()" class="btn btn-success">
-                            <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export CSV
+                        </button>
+                        <button onclick="shareReport()" class="btn btn-info">
+                            <i class="bi bi-share me-2"></i> Share
                         </button>
                     </div>
                 </div>
@@ -745,7 +748,9 @@ try {
                         <?php endif; ?>
                         <div class="col-md-2">
                             <label class="form-label">&nbsp;</label>
-                            <button type="submit" class="btn btn-primary w-100">Generate</button>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-graph-up me-2"></i> Generate
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -1042,6 +1047,21 @@ try {
             a.download = '<?php echo strtolower(str_replace(' ', '_', $report_title)); ?>_<?php echo date('Y-m-d'); ?>.csv';
             a.click();
             window.URL.revokeObjectURL(url);
+        }
+        
+        function shareReport() {
+            if (navigator.share) {
+                navigator.share({
+                    title: '<?php echo addslashes($report_title); ?>',
+                    text: 'Check out this report from our inventory system',
+                    url: window.location.href
+                });
+            } else {
+                // Fallback - copy URL to clipboard
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    alert('Report URL copied to clipboard!');
+                });
+            }
         }
         
         // Add table row hover effects

@@ -52,7 +52,13 @@ window.NotificationManager = {
         const bellElement = document.getElementById('notification-bell');
         if (!bellElement) return;
         
-        fetch('api/notifications.php?action=get_notifications&limit=5')
+        fetch('api/notifications.php?action=get_notifications&limit=5', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
             .then(response => {
                 if (!response.ok) {
                     if (response.status === 400 || response.status === 401) {
@@ -91,7 +97,11 @@ window.NotificationManager = {
     // Fetch and update notification count
     refreshCount: function() {
         fetch('api/notifications.php?action=get_unread_count', {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
         .then(response => {
             if (!response.ok) {
@@ -125,7 +135,13 @@ window.NotificationManager = {
         }
         
         // Test API accessibility first
-        fetch('api/notifications.php?action=get_unread_count')
+        fetch('api/notifications.php?action=get_unread_count', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
             .then(response => {
                 if (response.ok) {
                     // Initial update

@@ -669,10 +669,13 @@ try {
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-people"></i> User Management</h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-warning rounded-pill px-4 py-2" onclick="toggleStickyNotes()" id="notesToggle">
+                    <button class="btn btn-warning" onclick="toggleStickyNotes()" id="notesToggle">
                         <i class="bi bi-sticky me-2"></i> Notes
                     </button>
-                    <button class="btn btn-primary rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                    <button class="btn btn-info" onclick="exportUserData()">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export
+                    </button>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
                         <i class="bi bi-person-plus me-2"></i> Add User
                     </button>
                 </div>
@@ -683,10 +686,10 @@ try {
                 <div class="sticky-notes-header">
                     <h5><i class="bi bi-sticky-fill"></i> Quick Notes & Reminders</h5>
                     <div class="d-flex gap-2 align-items-center">
-                        <button class="btn btn-sm btn-success rounded-pill px-3 py-1" onclick="addStickyNote()">
+                        <button class="btn btn-sm btn-success" onclick="addStickyNote()">
                             <i class="bi bi-plus me-1"></i> Add Note
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1" onclick="toggleStickyNotes()">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleStickyNotes()">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
@@ -866,14 +869,14 @@ try {
                                             <div class="btn-group" role="group">
                                                 <?php if ($user['id'] != $_SESSION['user_id']): ?>
                                                     <button class="btn btn-sm btn-outline-primary" onclick="editUser(<?php echo htmlspecialchars(json_encode($user)); ?>)" title="Edit User">
-                                                        <i class="bi bi-pencil"></i>
+                                                        <i class="bi bi-pencil me-1"></i> Edit
                                                     </button>
                                                     <form method="POST" style="display: inline;">
                                                         <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                                                         <input type="hidden" name="action" value="reset_password">
                                                         <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
                                                         <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Reset password for this user?')" title="Reset Password">
-                                                            <i class="bi bi-key"></i>
+                                                            <i class="bi bi-key me-1"></i> Reset
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
@@ -894,7 +897,7 @@ try {
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>Recent User Activity</span>
                     <div class="d-flex gap-2 align-items-center">
-                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1" onclick="refreshActivity()" id="refresh-btn">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshActivity()" id="refresh-btn">
                             <i class="bi bi-arrow-clockwise me-1"></i> Refresh
                         </button>
                     </div>
@@ -993,10 +996,10 @@ try {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-lg me-2"></i> Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2">
+                        <button type="submit" class="btn btn-primary">
                             <i class="bi bi-person-plus me-2"></i> Create User
                         </button>
                     </div>
@@ -1055,10 +1058,10 @@ try {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-lg me-2"></i> Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2">
+                        <button type="submit" class="btn btn-primary">
                             <i class="bi bi-pencil me-2"></i> Update User
                         </button>
                     </div>
@@ -1110,10 +1113,10 @@ try {
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="bi bi-x-lg me-2"></i> Cancel
                     </button>
-                    <button type="button" class="btn btn-primary rounded-pill px-4 py-2" onclick="saveNote()">
+                    <button type="button" class="btn btn-primary" onclick="saveNote()">
                         <i class="bi bi-save me-2"></i> Save Note
                     </button>
                 </div>

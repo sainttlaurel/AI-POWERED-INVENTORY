@@ -1,36 +1,27 @@
 <?php
-// Include database and session files
 require_once 'config/database.php';
 require_once 'config/session.php';
 
-// Make sure user is logged in
 requireLogin();
 
-// Connect to database
 $database = new Database();
 $db = $database->getConnection();
 
-// Count total products
+// Count stuff
 $total_products = $db->query("SELECT COUNT(*) FROM products")->fetchColumn();
-
-// Count products that need restocking
 $low_stock = $db->query("SELECT COUNT(*) FROM products WHERE stock_quantity <= reorder_level AND stock_quantity > 0")->fetchColumn();
-
-// Count products that are completely out of stock
 $out_of_stock = $db->query("SELECT COUNT(*) FROM products WHERE stock_quantity = 0")->fetchColumn();
 
-// Calculate today's sales total
+// Get today sales
 try {
     $today_sales = $db->query("SELECT COALESCE(SUM(total_price), 0) FROM sales WHERE DATE(created_at) = CURDATE()")->fetchColumn();
 } catch (Exception $e) {
-    error_log("Error fetching today's sales: " . $e->getMessage());
     $today_sales = 0;
 }
 
-// Get recent sales - simplified approach
+// Get recent sales - just get them
 $recent_sales = [];
 try {
-    // Get all recent sales
     $sales_stmt = $db->prepare("
         SELECT s.id, s.created_at, s.customer_name, s.product_id, s.quantity, 
                s.total_price as total_amount,
@@ -45,7 +36,7 @@ try {
     $sales_data = $sales_stmt->fetchAll(PDO::FETCH_ASSOC);
     
     foreach ($sales_data as $sale) {
-        // Check if this is a multi-item sale
+        // Check if multi-item sale
         $items_stmt = $db->prepare("
             SELECT COUNT(*) as item_count, SUM(si.quantity) as total_qty
             FROM sale_items si 
@@ -55,12 +46,12 @@ try {
         $item_info = $items_stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($item_info['item_count'] > 0) {
-            // This is a multi-item sale
+            // Multi-item sale
             if ($item_info['item_count'] > 1) {
                 $product_display = "Multi-item Sale ({$item_info['item_count']} items)";
                 $quantity = $item_info['total_qty'];
             } else {
-                // Single item from sale_items table
+                // Single item
                 $single_item_stmt = $db->prepare("
                     SELECT p.product_name, sup.name as supplier_name, si.quantity
                     FROM sale_items si
@@ -81,7 +72,7 @@ try {
                 }
             }
         } else {
-            // Single item sale (old format)
+            // Single item sale (old way)
             if ($sale['product_name']) {
                 $product_display = $sale['product_name'] . ' (' . ($sale['supplier_name'] ?? 'No Brand') . ')';
                 $quantity = $sale['quantity'] ?? 0;
@@ -103,16 +94,15 @@ try {
     }
     
 } catch (Exception $e) {
-    error_log("Error fetching recent sales: " . $e->getMessage());
     $recent_sales = [];
 }
 
-// Get products that are running low on stock
+// Get low stock products
 $low_stock_products = $db->query("SELECT * FROM products 
     WHERE stock_quantity <= reorder_level 
     ORDER BY stock_quantity ASC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
 
-// Get sales data for the last week to show in chart
+// Get weekly sales for chart
 try {
     $weekly_sales = $db->query("SELECT DATE(created_at) as date, SUM(total_price) as total 
         FROM sales 
@@ -120,20 +110,19 @@ try {
         GROUP BY DATE(created_at) 
         ORDER BY date")->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    error_log("Error fetching weekly sales: " . $e->getMessage());
     $weekly_sales = [];
 }
 
-// Get category breakdown for pie chart
+// Get categories for pie chart
 $categories = $db->query("SELECT c.name, COUNT(p.id) as count, SUM(p.price * p.stock_quantity) as value
     FROM categories c 
     LEFT JOIN products p ON c.id = p.category_id 
     GROUP BY c.id 
     ORDER BY count DESC")->fetchAll(PDO::FETCH_ASSOC);
 
-// Monthly sales data (last 6 months)
+// Monthly sales (last 6 months)
 try {
-    // Create a 6-month template first
+    // Make 6 month template
     $months_template = [];
     for ($i = 5; $i >= 0; $i--) {
         $month_key = date('Y-m', strtotime("-$i months"));
@@ -144,14 +133,14 @@ try {
         ];
     }
     
-    // Get actual monthly data
+    // Get monthly data
     $monthly_sales_raw = $db->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as month, SUM(total_price) as total 
         FROM sales 
         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
         GROUP BY DATE_FORMAT(created_at, '%Y-%m') 
         ORDER BY month")->fetchAll(PDO::FETCH_ASSOC);
     
-    // Fill in actual sales data into template
+    // Fill template with data
     foreach ($monthly_sales_raw as $sale) {
         if (isset($months_template[$sale['month']])) {
             $months_template[$sale['month']]['total'] = (float)$sale['total'];
@@ -161,8 +150,7 @@ try {
     $monthly_sales = array_values($months_template);
     
 } catch (Exception $e) {
-    error_log("Error fetching monthly sales: " . $e->getMessage());
-    // Create empty 6-month template as fallback
+    // Empty template if error
     $monthly_sales = [];
     for ($i = 5; $i >= 0; $i--) {
         $monthly_sales[] = [
@@ -172,11 +160,11 @@ try {
     }
 }
 
-// Prepare data for JavaScript charts
+// Prepare chart data
 $salesData = [];
 $monthlyData = [];
 
-// Sales chart data (last 7 days)
+// Sales chart data
 foreach ($weekly_sales as $sale) {
     $salesData[] = [
         'date' => $sale['date'],
@@ -294,6 +282,17 @@ foreach ($monthly_sales as $month) {
         <main>
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-speedometer2"></i> Dashboard</h1>
+                <div class="d-flex gap-2 align-items-center">
+                    <button onclick="window.print()" class="btn btn-outline-secondary">
+                        <i class="bi bi-printer me-2"></i> Print
+                    </button>
+                    <button onclick="exportDashboard()" class="btn btn-success">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export
+                    </button>
+                    <a href="reports.php" class="btn btn-primary">
+                        <i class="bi bi-graph-up me-2"></i> View Reports
+                    </a>
+                </div>
             </div>
 
             <!-- Main Stats -->
@@ -602,6 +601,44 @@ foreach ($monthly_sales as $month) {
                 }
             }
         });
+        
+        // Export dashboard data
+        function exportDashboard() {
+            const data = {
+                total_products: <?php echo $total_products; ?>,
+                low_stock: <?php echo $low_stock; ?>,
+                out_of_stock: <?php echo $out_of_stock; ?>,
+                today_sales: <?php echo $today_sales; ?>,
+                recent_sales: <?php echo json_encode($recent_sales); ?>,
+                low_stock_products: <?php echo json_encode($low_stock_products); ?>
+            };
+            
+            const csv = [
+                'Dashboard Summary - ' + new Date().toLocaleDateString(),
+                '',
+                'Metrics',
+                'Total Products,' + data.total_products,
+                'Low Stock Items,' + data.low_stock,
+                'Out of Stock Items,' + data.out_of_stock,
+                'Today\'s Sales,₱' + data.today_sales,
+                '',
+                'Recent Sales',
+                'Product,Quantity,Total,Date'
+            ];
+            
+            data.recent_sales.forEach(sale => {
+                csv.push(`"${sale.product_display}",${sale.total_quantity},₱${sale.total_amount},"${sale.created_at}"`);
+            });
+            
+            const csvContent = csv.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'dashboard_summary_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
     </script>
 </body>
 </html>

@@ -724,10 +724,17 @@ try {
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-tags"></i> Categories, Suppliers & Locations</h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-primary rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
                         <i class="bi bi-plus-lg me-2"></i> Add Category
                     </button>
-                    <button class="btn btn-success rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+                        <i class="bi bi-plus-lg me-2"></i> Add Supplier
+                    </button>
+                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addLocationModal">
+                        <i class="bi bi-plus-lg me-2"></i> Add Location
+                    </button>
+                </div>
+            </div>gle="modal" data-bs-target="#addSupplierModal">
                         <i class="bi bi-plus-lg me-2"></i> Add Supplier
                     </button>
                 </div>
@@ -792,7 +799,7 @@ try {
                                                     <td>
                                                         <?php if (isAdmin()): ?>
                                                             <div class="d-flex gap-2">
-                                                                <button class="btn btn-sm btn-primary rounded-pill px-3" 
+                                                                <button class="btn btn-sm btn-primary" 
                                                                         onclick="editCategory(<?php echo $category['id']; ?>, '<?php echo htmlspecialchars($category['name']); ?>', '<?php echo htmlspecialchars($category['description'] ?? ''); ?>')">
                                                                     <i class="bi bi-pencil me-1"></i> Edit
                                                                 </button>
@@ -803,13 +810,13 @@ try {
                                                                         <input type="hidden" name="action" value="delete">
                                                                         <input type="hidden" name="category_id" value="<?php echo $category['id']; ?>">
                                                                         <input type="hidden" name="move_to_category" value="0">
-                                                                        <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3" 
+                                                                        <button type="submit" class="btn btn-sm btn-danger" 
                                                                                 onclick="return confirm('Delete this category? This action cannot be undone.')">
                                                                             <i class="bi bi-trash me-1"></i> Delete
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3" 
+                                                                    <button class="btn btn-sm btn-outline-danger" 
                                                                             onclick="showDeleteModal(<?php echo $category['id']; ?>, '<?php echo htmlspecialchars($category['name']); ?>', <?php echo $category['product_count']; ?>)">
                                                                         <i class="bi bi-trash me-1"></i> Delete
                                                                     </button>
@@ -869,7 +876,7 @@ try {
                                                     <td>
                                                         <?php if (isAdmin()): ?>
                                                             <div class="d-flex gap-2">
-                                                                <button class="btn btn-sm btn-primary rounded-pill px-3" 
+                                                                <button class="btn btn-sm btn-primary" 
                                                                         onclick="editSupplier(<?php echo $supplier['id']; ?>, '<?php echo htmlspecialchars($supplier['name']); ?>', '<?php echo htmlspecialchars($supplier['contact_person'] ?? ''); ?>', '<?php echo htmlspecialchars($supplier['email'] ?? ''); ?>', '<?php echo htmlspecialchars($supplier['phone'] ?? ''); ?>', '<?php echo htmlspecialchars($supplier['address'] ?? ''); ?>')">
                                                                     <i class="bi bi-pencil me-1"></i> Edit
                                                                 </button>
@@ -880,13 +887,13 @@ try {
                                                                         <input type="hidden" name="action" value="delete_supplier">
                                                                         <input type="hidden" name="supplier_id" value="<?php echo $supplier['id']; ?>">
                                                                         <input type="hidden" name="move_to_supplier" value="0">
-                                                                        <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3" 
+                                                                        <button type="submit" class="btn btn-sm btn-danger" 
                                                                                 onclick="return confirm('Delete this supplier? This action cannot be undone.')">
                                                                             <i class="bi bi-trash me-1"></i> Delete
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <button class="btn btn-sm btn-danger rounded-pill px-3" 
+                                                                    <button class="btn btn-sm btn-danger" 
                                                                             onclick="showDeleteSupplierModal(<?php echo $supplier['id']; ?>, '<?php echo htmlspecialchars($supplier['name']); ?>', <?php echo $supplier['product_count']; ?>)">
                                                                         <i class="bi bi-trash me-1"></i> Delete
                                                                     </button>
@@ -956,7 +963,7 @@ try {
                                                     <td>
                                                         <?php if (isAdmin()): ?>
                                                             <div class="d-flex gap-2">
-                                                                <button class="btn btn-sm btn-primary rounded-pill px-3" 
+                                                                <button class="btn btn-sm btn-primary" 
                                                                         onclick="editLocation(<?php echo $location['id']; ?>, '<?php echo htmlspecialchars($location['name']); ?>', '<?php echo htmlspecialchars($location['code']); ?>', '<?php echo $location['type']; ?>', '<?php echo htmlspecialchars($location['address'] ?? ''); ?>', '<?php echo htmlspecialchars($location['phone'] ?? ''); ?>', '<?php echo htmlspecialchars($location['email'] ?? ''); ?>')">
                                                                     <i class="bi bi-pencil me-1"></i> Edit
                                                                 </button>
@@ -966,13 +973,13 @@ try {
                                                                         <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                                                                         <input type="hidden" name="action" value="delete_location">
                                                                         <input type="hidden" name="location_id" value="<?php echo $location['id']; ?>">
-                                                                        <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3" 
+                                                                        <button type="submit" class="btn btn-sm btn-danger" 
                                                                                 onclick="return confirm('Delete this location? This action cannot be undone.')">
                                                                             <i class="bi bi-trash me-1"></i> Delete
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <button class="btn btn-sm btn-warning rounded-pill px-3" disabled title="Cannot delete location with stock">
+                                                                    <button class="btn btn-sm btn-warning" disabled title="Cannot delete location with stock">
                                                                         <i class="bi bi-exclamation-triangle me-1"></i> Has Stock
                                                                     </button>
                                                                 <?php endif; ?>
@@ -1075,10 +1082,10 @@ try {
                         <?php endif; ?>
                     </div>
                     <div class="modal-footer d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-lg me-2"></i> Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2">
+                        <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg me-2"></i> Add Category
                         </button>
                     </div>
@@ -1112,10 +1119,10 @@ try {
                         </div>
                     </div>
                     <div class="modal-footer d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-lg me-2"></i> Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2">
+                        <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg me-2"></i> Update Category
                         </button>
                     </div>

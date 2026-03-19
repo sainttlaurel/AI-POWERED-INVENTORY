@@ -1,16 +1,16 @@
-<nav class="navbar navbar-light fixed-top">
+<nav class="navbar navbar-expand-lg navbar-light fixed-top">
     <div class="container-fluid">
         <button class="navbar-toggler d-md-none" type="button" onclick="toggleSidebar()">
-            <i class="bi bi-list"></i>
+            <span class="navbar-toggler-icon"></span>
         </button>
         <a class="navbar-brand" href="dashboard.php">
             <i class="bi bi-boxes"></i> Inventory System
         </a>
         <div class="d-flex align-items-center">
-            <!-- Minimal Notifications Icon -->
-            <div class="notification-container me-3">
+            <!-- Notifications -->
+            <div class="me-3">
                 <a href="notifications.php" class="notification-btn" id="notification-bell" title="View Notifications">
-                    <i class="bi bi-bell notification-icon"></i>
+                    <i class="bi bi-bell"></i>
                     <?php
                     // Get unread notification count
                     try {
@@ -49,7 +49,7 @@
                 </a>
             </div>
             
-            <span class="me-3" style="color: #64748b;">
+            <span class="me-3 text-muted">
                 <i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($_SESSION['username']); ?>
             </span>
             <a href="logout.php" class="btn btn-outline-secondary btn-sm">
@@ -61,3 +61,4 @@
 
 <!-- Include notification management script -->
 <script src="js/notifications.js?v=<?php echo time(); ?>"></script>
+<script src="js/main.js?v=<?php echo time(); ?>"></script>

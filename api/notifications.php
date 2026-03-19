@@ -1,5 +1,4 @@
 <?php
-
 require_once '../config/database.php';
 require_once '../config/session.php';
 
@@ -8,12 +7,22 @@ class NotificationAPI {
     private $user_id;
     
     public function __construct() {
+        // Ensure session is started
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
         if (!isset($_SESSION['user_id'])) {
-            $this->sendError('Unauthorized access', 401);
+            $this->sendError('Unauthorized access - Please log in', 401);
         }
         
         $database = new Database();
         $this->db = $database->getConnection();
+        
+        if (!$this->db) {
+            $this->sendError('Database connection failed', 500);
+        }
+        
         $this->user_id = $_SESSION['user_id'];
         
         header('Content-Type: application/json');
@@ -276,4 +285,3 @@ try {
         'error' => 'Internal server error'
     ]);
 }
-?>

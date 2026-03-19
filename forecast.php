@@ -155,11 +155,14 @@ if (empty($forecasts)) {
                     <h1 class="h2"><i class="bi bi-graph-up-arrow"></i> AI Forecast Analytics</h1>
                     <div>
                         <button onclick="refreshForecasts()" class="btn btn-outline-primary me-2">
-                            <i class="bi bi-arrow-clockwise"></i> Refresh Data
+                            <i class="bi bi-arrow-clockwise me-2"></i> Refresh Data
                         </button>
-                        <a href="reports.php?type=low_stock" class="btn btn-outline-secondary">
-                            <i class="bi bi-printer"></i> Print Report
+                        <a href="reports.php?type=low_stock" class="btn btn-outline-secondary me-2">
+                            <i class="bi bi-printer me-2"></i> Print Report
                         </a>
+                        <button onclick="exportForecast()" class="btn btn-success">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export
+                        </button>
                     </div>
                 </div>
 
@@ -292,7 +295,7 @@ if (empty($forecasts)) {
                                 <p class="mt-2">No forecast data available</p>
                                 <p><small>Add products and sales data to generate AI forecasts</small></p>
                                 <a href="products.php" class="btn btn-primary">
-                                    <i class="bi bi-plus-circle"></i> Add Products
+                                    <i class="bi bi-plus-circle me-2"></i> Add Products
                                 </a>
                             </div>
                         <?php endif; ?>
@@ -406,6 +409,29 @@ if (empty($forecasts)) {
                     btn.innerHTML = originalText;
                     alert('Failed to refresh forecasts. Please try again.');
                 });
+        }
+
+        // Export forecast data
+        function exportForecast() {
+            const forecasts = <?php echo json_encode($forecasts); ?>;
+            const csv = [
+                'AI Forecast Analytics - ' + new Date().toLocaleDateString(),
+                '',
+                'Product,Current Stock,Avg Daily Sales,Weekly Forecast,Monthly Forecast,Depletion Days,Reorder Suggestion'
+            ];
+            
+            forecasts.forEach(f => {
+                csv.push(`"${f.product_name}",${f.stock_quantity || 0},${f.avg_daily_sales || 0},${f.forecast_weekly || 0},${f.forecast_monthly || 0},${f.predicted_depletion_days || 0},${f.reorder_suggestion || 0}`);
+            });
+            
+            const csvContent = csv.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'forecast_data_' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
         }
 
         // Add table row hover effects

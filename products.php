@@ -1,36 +1,34 @@
 <?php
-// Include required files
+// basic includes
 require_once 'config/database.php';
 require_once 'config/session.php';
 require_once 'config/rate_limiter.php';
 require_once 'config/file_handler.php';
 require_once 'config/error_handler.php';
 
-// Make sure user is logged in
 requireLogin();
 
-// Connect to database
 $database = new Database();
 $db = $database->getConnection();
 $rateLimiter = new RateLimiter($db);
 $fileHandler = new FileHandler();
 
-// Handle form submissions (adding/deleting products)
+// handle form stuff
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    // Rate limiting
+    // rate limiting check
     if (!$rateLimiter->checkLimit('product_action', 10, 60)) {
-        die('Too many requests. Please wait before trying again.');
+        die('Too many requests. Wait a bit.');
     }
     
-    // Check security token
+    // security check
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        die('Invalid CSRF token');
+        die('Invalid token');
     }
     
     try {
-        // Adding a new product
+        // add new product
         if ($_POST['action'] === 'add') {
-            // Validate input
+            // check input
             $validation_rules = [
                 'product_name' => ['required' => true, 'max_length' => 255],
                 'category_id' => ['required' => true, 'type' => 'int', 'min' => 1],
@@ -48,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             
             $uploaded_image = '';
             
-            // Handle image upload if user selected one
+            // handle image upload
             if (isset($_FILES['image']) && $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
                 if ($_FILES['image']['error'] === UPLOAD_ERR_OK) {
                     try {
@@ -57,34 +55,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         throw new Exception("Image upload failed: " . $e->getMessage());
                     }
                 } else {
-                    // Handle specific upload errors
+                    // upload errors
                     $error_messages = [
-                        UPLOAD_ERR_INI_SIZE => 'File is too large (exceeds server limit)',
-                        UPLOAD_ERR_FORM_SIZE => 'File is too large (exceeds form limit)',
-                        UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
-                        UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
-                        UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
-                        UPLOAD_ERR_EXTENSION => 'File upload stopped by extension'
+                        UPLOAD_ERR_INI_SIZE => 'File too large (server limit)',
+                        UPLOAD_ERR_FORM_SIZE => 'File too large (form limit)',
+                        UPLOAD_ERR_PARTIAL => 'File partially uploaded',
+                        UPLOAD_ERR_NO_TMP_DIR => 'No temp folder',
+                        UPLOAD_ERR_CANT_WRITE => 'Cannot write file',
+                        UPLOAD_ERR_EXTENSION => 'Upload stopped by extension'
                     ];
                     $error_msg = $error_messages[$_FILES['image']['error']] ?? 'Unknown upload error';
                     throw new Exception("Image upload error: " . $error_msg);
                 }
             }
             
-            // Insert new product into database
-            $insert_query = "INSERT INTO products (product_name, category_id, supplier_id, price, cost_price, stock_quantity, reorder_level, barcode, image) VALUES (:name, :category, :supplier, :price, :cost_price, :stock, :reorder, :barcode, :image)";
+            // insert product into database
+            $qr_columns_exist = false;
+            try {
+                $stmt_check = $db->query("SHOW COLUMNS FROM products LIKE 'qr_code'");
+                $qr_columns_exist = $stmt_check->rowCount() > 0;
+            } catch (Exception $e) {
+                // no QR columns
+            }
+            
+            if ($qr_columns_exist) {
+                // insert with QR columns
+                $insert_query = "INSERT INTO products (product_name, category_id, supplier_id, price, cost_price, stock_quantity, reorder_level, barcode, image, qr_code, qr_data) VALUES (:name, :category, :supplier, :price, :cost_price, :stock, :reorder, :barcode, :image, :qr_code, :qr_data)";
+                
+                // make QR code data
+                $product_id_placeholder = 'TEMP_' . time() . '_' . rand(1000, 9999);
+                $qr_filename = 'qr_product_' . $product_id_placeholder . '.png';
+                $qr_data = json_encode([
+                    'type' => 'product',
+                    'name' => $_POST['product_name'],
+                    'barcode' => $_POST['barcode'],
+                    'created_at' => date('c')
+                ]);
+            } else {
+                // insert without QR columns
+                $insert_query = "INSERT INTO products (product_name, category_id, supplier_id, price, cost_price, stock_quantity, reorder_level, barcode, image) VALUES (:name, :category, :supplier, :price, :cost_price, :stock, :reorder, :barcode, :image)";
+            }
+            
             $stmt = $db->prepare($insert_query);
-            $stmt->execute([
-                ':name' => trim($_POST['product_name']),
-                ':category' => (int)$_POST['category_id'],
-                ':supplier' => (int)$_POST['supplier_id'],
-                ':price' => (float)$_POST['price'],
-                ':cost_price' => (float)$_POST['cost_price'],
-                ':stock' => (int)$_POST['stock_quantity'],
-                ':reorder' => (int)$_POST['reorder_level'],
-                ':barcode' => trim($_POST['barcode']),
-                ':image' => $uploaded_image
-            ]);
+            if ($qr_columns_exist) {
+                $stmt->execute([
+                    ':name' => trim($_POST['product_name']),
+                    ':category' => (int)$_POST['category_id'],
+                    ':supplier' => (int)$_POST['supplier_id'],
+                    ':price' => (float)$_POST['price'],
+                    ':cost_price' => (float)$_POST['cost_price'],
+                    ':stock' => (int)$_POST['stock_quantity'],
+                    ':reorder' => (int)$_POST['reorder_level'],
+                    ':barcode' => trim($_POST['barcode']),
+                    ':image' => $uploaded_image,
+                    ':qr_code' => $qr_filename,
+                    ':qr_data' => $qr_data
+                ]);
+                
+                // Get the actual product ID
+                $product_id = $db->lastInsertId();
+                
+                // Update QR code with actual product ID
+                $final_qr_filename = 'qr_product_' . $product_id . '.png';
+                $final_qr_data = json_encode([
+                    'type' => 'product',
+                    'id' => $product_id,
+                    'name' => trim($_POST['product_name']),
+                    'barcode' => trim($_POST['barcode']),
+                    'url' => "http://{$_SERVER['HTTP_HOST']}/INVENTORY/product_detail.php?id={$product_id}",
+                    'created_at' => date('c')
+                ]);
+                
+                // Update the product with final QR code data
+                $update_stmt = $db->prepare("UPDATE products SET qr_code = ?, qr_data = ? WHERE id = ?");
+                $update_stmt->execute([$final_qr_filename, $final_qr_data, $product_id]);
+            } else {
+                $stmt->execute([
+                    ':name' => trim($_POST['product_name']),
+                    ':category' => (int)$_POST['category_id'],
+                    ':supplier' => (int)$_POST['supplier_id'],
+                    ':price' => (float)$_POST['price'],
+                    ':cost_price' => (float)$_POST['cost_price'],
+                    ':stock' => (int)$_POST['stock_quantity'],
+                    ':reorder' => (int)$_POST['reorder_level'],
+                    ':barcode' => trim($_POST['barcode']),
+                    ':image' => $uploaded_image
+                ]);
+            }
             
             // Log the activity
             logUserActivity('product_added', "Added new product: " . trim($_POST['product_name']));
@@ -442,9 +499,12 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
             position: relative;
             overflow: hidden;
             font-size: 12px;
-            text-align: center;
+            display: flex;
+            align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            width: 85px;
+            height: 32px;
         }
         
         .action-buttons .btn:hover {
@@ -613,6 +673,154 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
             transform: translateY(-1px);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+        
+        /* Modal optimizations for no-scroll layout */
+        .modal-dialog {
+            max-height: calc(100vh - 40px);
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+        }
+        
+        .modal-content {
+            max-height: calc(100vh - 40px);
+            overflow: hidden;
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-header {
+            padding: 24px 32px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .modal-body {
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+            padding: 24px 32px;
+            background: white;
+        }
+        
+        .modal-lg .modal-body {
+            max-height: calc(100vh - 180px);
+        }
+        
+        .modal-footer {
+            padding: 16px 32px 24px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+            border-radius: 0 0 16px 16px;
+            gap: 12px;
+        }
+        
+        /* Compact form styling for modals */
+        .modal .form-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+        
+        .modal .form-control,
+        .modal .form-select {
+            font-size: 0.875rem;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+        
+        .modal .form-control:focus,
+        .modal .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+        
+        .modal .mb-3 {
+            margin-bottom: 1.25rem;
+        }
+        
+        .modal .text-muted {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        
+        /* Consistent button styling for modals */
+        .modal .btn {
+            padding: 12px 24px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            transition: all 0.2s ease;
+            min-width: 120px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .modal .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .modal .btn-secondary:hover {
+            background: #4b5563;
+            color: white;
+        }
+        
+        .modal .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .modal .btn-primary:hover {
+            background: #2563eb;
+            color: white;
+        }
+        
+        /* Modal buttons now use unified system */
+        
+        /* Two-column layout for modal forms */
+        .modal .row .col-md-6 .mb-3:last-child {
+            margin-bottom: 1.25rem;
+        }
+        
+        /* Responsive modal adjustments */
+        @media (max-width: 768px) {
+            .modal-dialog {
+                margin: 10px;
+                max-width: calc(100vw - 20px);
+            }
+            
+            .modal-body {
+                max-height: calc(100vh - 160px);
+                padding: 20px;
+            }
+            
+            .modal-header,
+            .modal-footer {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+            
+            .modal-lg .modal-body {
+                max-height: calc(100vh - 160px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -643,22 +851,28 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                     <h1 class="h2"><i class="bi bi-box-seam"></i> Products</h1>
                     <div class="d-flex gap-2 align-items-center">
                         <div class="btn-group" id="bulk-actions" style="display: none;">
-                            <button class="btn btn-outline-warning rounded-pill px-4 py-2" onclick="bulkUpdateStock()">
+                            <button class="btn btn-outline-warning" onclick="bulkUpdateStock()">
                                 <i class="bi bi-arrow-up-circle me-2"></i> Update Stock
                             </button>
                             <?php if (isAdmin()): ?>
-                                <button class="btn btn-outline-danger rounded-pill px-4 py-2" onclick="bulkDelete()">
+                                <button class="btn btn-outline-danger" onclick="bulkDelete()">
                                     <i class="bi bi-trash me-2"></i> Delete Selected
                                 </button>
                             <?php endif; ?>
                         </div>
-                        <button onclick="printProducts()" class="btn btn-outline-secondary rounded-pill px-4 py-2" title="Print Products Report">
+                        <button onclick="printProducts()" class="btn btn-outline-secondary" title="Print Products Report">
                             <i class="bi bi-printer me-2"></i> Print
                         </button>
-                        <button onclick="exportProductsCSV()" class="btn btn-outline-success rounded-pill px-4 py-2" title="Export Products to CSV">
+                        <button onclick="exportProductsCSV()" class="btn btn-outline-success" title="Export Products to CSV">
                             <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export CSV
                         </button>
-                        <button class="btn btn-primary rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                        <button class="btn btn-secondary" onclick="window.location.href='qr_codes.php'">
+                            <i class="bi bi-qr-code me-2"></i> QR Codes
+                        </button>
+                        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#qrScannerModal">
+                            <i class="bi bi-camera me-2"></i> Scan QR
+                        </button>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                             <i class="bi bi-plus-lg me-2"></i> Add Product
                         </button>
                     </div>
@@ -689,10 +903,10 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                                         <div class="col-md-2">
                             <div class="d-flex gap-1">
-                                <button class="btn btn-outline-secondary rounded-pill px-3" type="submit">
+                                <button class="btn btn-outline-secondary" type="submit">
                                     <i class="bi bi-funnel me-1"></i> Filter
                                 </button>
-                                <a href="products.php" class="btn btn-outline-danger rounded-pill px-2" title="Clear Filters">
+                                <a href="products.php" class="btn btn-outline-danger" title="Clear Filters">
                                     <i class="bi bi-x-lg"></i>
                                 </a>
                             </div>
@@ -737,7 +951,7 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover mb-0">
+                            <table class="table table-striped table-hover table-compact mb-0">
                                 <thead class="table-dark">
                                     <tr>
                                         <th>
@@ -820,16 +1034,26 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                                         <td><?php echo $product['reorder_level']; ?></td>
                                         <td><?php echo htmlspecialchars($product['barcode']); ?></td>
                                         <td>
-                                            <div class="action-buttons d-flex gap-1 align-items-center justify-content-start">
-                                                <a href="product_detail.php?id=<?php echo $product['id']; ?>" class="btn btn-sm btn-info rounded-pill px-3 py-1 d-flex align-items-center" title="View Details" style="min-width: 70px; height: 32px;">
-                                                    <i class="bi bi-eye me-1"></i> View
+                                            <div class="action-buttons d-flex flex-column gap-2 align-items-center justify-content-center">
+                                                <a href="product_detail.php?id=<?php echo $product['id']; ?>" 
+                                                   class="btn btn-sm btn-info" 
+                                                   title="View Details"
+                                                   aria-label="View details for <?php echo htmlspecialchars($product['product_name']); ?>">
+                                                    <i class="bi bi-eye"></i> View
                                                 </a>
-                                                <button class="btn btn-sm btn-primary rounded-pill px-3 py-1 d-flex align-items-center" onclick="openEditModal(<?php echo $product['id']; ?>)" title="Edit Product" style="min-width: 70px; height: 32px;">
-                                                    <i class="bi bi-pencil me-1"></i> Edit
+                                                <button class="btn btn-sm btn-primary" 
+                                                        onclick="openEditModal(<?php echo $product['id']; ?>)" 
+                                                        title="Edit Product"
+                                                        aria-label="Edit <?php echo htmlspecialchars($product['product_name']); ?>">
+                                                    <i class="bi bi-pencil"></i> Edit
                                                 </button>
                                                 <?php if (isAdmin()): ?>
-                                                    <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 py-1 d-flex align-items-center" onclick="deleteProduct(<?php echo $product['id']; ?>)" title="Delete Product" style="min-width: 70px; height: 32px;">
-                                                        <i class="bi bi-trash me-1"></i> Delete
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-danger" 
+                                                            onclick="deleteProduct(<?php echo $product['id']; ?>)" 
+                                                            title="Delete Product"
+                                                            aria-label="Delete <?php echo htmlspecialchars($product['product_name']); ?>">
+                                                        <i class="bi bi-trash"></i> Delete
                                                     </button>
                                                 <?php endif; ?>
                                             </div>
@@ -846,7 +1070,7 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <div class="modal fade" id="addProductModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <form method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
@@ -856,47 +1080,59 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Product Name</label>
-                            <input type="text" name="product_name" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Category</label>
-                            <select name="category_id" class="form-select" required>
-                                <?php foreach ($categories as $cat): ?>
-                                    <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Supplier</label>
-                            <select name="supplier_id" class="form-select" required>
-                                <?php foreach ($suppliers as $sup): ?>
-                                    <option value="<?php echo $sup['id']; ?>"><?php echo htmlspecialchars($sup['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Cost Price</label>
-                            <input type="number" step="0.01" name="cost_price" class="form-control" required placeholder="Enter cost price">
-                            <small class="text-muted">The price you pay to acquire this product</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Selling Price</label>
-                            <input type="number" step="0.01" name="price" class="form-control" required placeholder="Enter selling price">
-                            <small class="text-muted">The price you sell this product for</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Stock Quantity</label>
-                            <input type="number" name="stock_quantity" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Reorder Level</label>
-                            <input type="number" name="reorder_level" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Barcode</label>
-                            <input type="text" name="barcode" class="form-control">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" name="product_name" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Category</label>
+                                    <select name="category_id" class="form-select" required>
+                                        <?php foreach ($categories as $cat): ?>
+                                            <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Supplier</label>
+                                    <select name="supplier_id" class="form-select" required>
+                                        <?php foreach ($suppliers as $sup): ?>
+                                            <option value="<?php echo $sup['id']; ?>"><?php echo htmlspecialchars($sup['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Barcode</label>
+                                    <input type="text" name="barcode" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Cost Price</label>
+                                    <input type="number" step="0.01" name="cost_price" class="form-control" required placeholder="Enter cost price">
+                                    <small class="text-muted">The price you pay to acquire this product</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Selling Price</label>
+                                    <input type="number" step="0.01" name="price" class="form-control" required placeholder="Enter selling price">
+                                    <small class="text-muted">The price you sell this product for</small>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Stock Quantity</label>
+                                            <input type="number" name="stock_quantity" class="form-control" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Reorder Level</label>
+                                            <input type="number" name="reorder_level" class="form-control" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Product Image</label>
@@ -904,11 +1140,11 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
-                            <i class="bi bi-x-lg me-2"></i> Close
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2">
-                            <i class="bi bi-plus-circle me-2"></i> Add Product
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check me-2"></i> Add Product
                         </button>
                     </div>
                 </form>
@@ -918,7 +1154,7 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Edit Product Modal -->
     <div class="modal fade" id="editProductModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <form method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
@@ -929,47 +1165,53 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Product Name</label>
-                            <input type="text" name="product_name" id="edit_product_name" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Category</label>
-                            <select name="category_id" id="edit_category_id" class="form-select" required>
-                                <?php foreach ($categories as $cat): ?>
-                                    <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Supplier</label>
-                            <select name="supplier_id" id="edit_supplier_id" class="form-select" required>
-                                <?php foreach ($suppliers as $sup): ?>
-                                    <option value="<?php echo $sup['id']; ?>"><?php echo htmlspecialchars($sup['name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Cost Price</label>
-                            <input type="number" step="0.01" name="cost_price" id="edit_cost_price" class="form-control" required>
-                            <small class="text-muted">The price you pay to acquire this product</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Selling Price</label>
-                            <input type="number" step="0.01" name="price" id="edit_price" class="form-control" required>
-                            <small class="text-muted">The price you sell this product for</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Stock Quantity</label>
-                            <input type="number" name="stock_quantity" id="edit_stock_quantity" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Reorder Level</label>
-                            <input type="number" name="reorder_level" id="edit_reorder_level" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Barcode</label>
-                            <input type="text" name="barcode" id="edit_barcode" class="form-control">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" name="product_name" id="edit_product_name" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Category</label>
+                                    <select name="category_id" id="edit_category_id" class="form-select" required>
+                                        <?php foreach ($categories as $cat): ?>
+                                            <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Supplier</label>
+                                    <select name="supplier_id" id="edit_supplier_id" class="form-select" required>
+                                        <?php foreach ($suppliers as $sup): ?>
+                                            <option value="<?php echo $sup['id']; ?>"><?php echo htmlspecialchars($sup['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Barcode</label>
+                                    <input type="text" name="barcode" id="edit_barcode" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Cost Price</label>
+                                    <input type="number" step="0.01" name="cost_price" id="edit_cost_price" class="form-control" required>
+                                    <small class="text-muted">The price you pay to acquire this product</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Selling Price</label>
+                                    <input type="number" step="0.01" name="price" id="edit_price" class="form-control" required>
+                                    <small class="text-muted">The price you sell this product for</small>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Reorder Level</label>
+                                            <input type="number" name="reorder_level" id="edit_reorder_level" class="form-control" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Product Image</label>
@@ -980,13 +1222,17 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                             <input type="file" name="image" class="form-control" accept="image/*">
                             <small class="text-muted">Leave empty to keep current image</small>
                         </div>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Note:</strong> Stock quantity cannot be changed here. Use the "Adjust Stock" button to modify inventory levels.
+                        </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
-                            <i class="bi bi-x-lg me-2"></i> Cancel
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2">
-                            <i class="bi bi-check-lg me-2"></i> Update Product
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check me-2"></i> Update Product
                         </button>
                     </div>
                 </form>
@@ -1027,10 +1273,10 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
-                            <i class="bi bi-x-lg me-2"></i> Cancel
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
                         </button>
-                        <button type="submit" class="btn btn-warning rounded-pill px-4 py-2">
+                        <button type="submit" class="btn btn-primary">
                             <i class="bi bi-arrow-up-circle me-2"></i> Update Stock
                         </button>
                     </div>
@@ -1039,18 +1285,82 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
+    <!-- QR Scanner Modal -->
+    <div class="modal fade" id="qrScannerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-camera"></i> QR Code Scanner</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Camera Scanner</h6>
+                            <video id="qrVideo" width="100%" height="250" style="border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;"></video>
+                            <div class="mt-2">
+                                <button id="startScan" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-camera"></i> Start Camera
+                                </button>
+                                <button id="stopScan" class="btn btn-secondary btn-sm" style="display: none;">
+                                    <i class="bi bi-stop"></i> Stop Camera
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Upload QR Code Image</h6>
+                            <input type="file" id="qrFileInput" class="form-control mb-3" accept="image/*">
+                            <canvas id="qrCanvas" style="display: none;"></canvas>
+                            
+                            <div class="mt-3">
+                                <h6>Quick Product Search</h6>
+                                <input type="text" id="productSearch" class="form-control" placeholder="Search by name or barcode...">
+                                <div id="searchResults" class="mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="qrScanResult" class="mt-3" style="display: none;">
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle"></i> Product Found!</h6>
+                            <div id="qrResultContent"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-info" onclick="window.location.href='qr_codes.php'">
+                        <i class="bi bi-qr-code"></i> Manage QR Codes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php include 'includes/chatbot.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script src="js/chatbot.js?v=<?php echo time(); ?>&cb=<?php echo rand(); ?>"></script>
     <script src="js/export.js?v=<?php echo time(); ?>"></script>
     <script src="js/mobile.js?v=<?php echo time(); ?>"></script>
+    <script src="js/qr_codes.js?v=<?php echo time(); ?>"></script>
     
     <script>
         // Define openEditModal function at the top level to ensure it's available
         function openEditModal(productId) {
             // Find the product data from the table row
             const row = document.querySelector(`input[value="${productId}"]`).closest('tr');
+            if (!row) {
+                console.error('Product row not found for ID:', productId);
+                return;
+            }
+            
             const cells = row.querySelectorAll('td');
+            if (cells.length < 12) {
+                console.error('Not enough table cells found');
+                return;
+            }
             
             // Extract data from table cells
             const productName = cells[2].textContent.trim();
@@ -1058,7 +1368,6 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
             const supplierName = cells[4].textContent.trim();
             const costPrice = cells[5].textContent.replace('₱', '').replace(',', '').trim();
             const price = cells[6].textContent.replace('₱', '').replace(',', '').trim();
-            const stock = cells[9].querySelector('.badge').textContent.trim();
             const reorderLevel = cells[10].textContent.trim();
             const barcode = cells[11].textContent.trim();
             
@@ -1067,29 +1376,39 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
             const imageSrc = imgElement ? imgElement.src : null;
             
             // Populate the edit form
-            document.getElementById('edit_product_id').value = productId;
-            document.getElementById('edit_product_name').value = productName;
-            document.getElementById('edit_cost_price').value = costPrice;
-            document.getElementById('edit_price').value = price;
-            document.getElementById('edit_stock_quantity').value = stock;
-            document.getElementById('edit_reorder_level').value = reorderLevel;
-            document.getElementById('edit_barcode').value = barcode;
+            const editProductId = document.getElementById('edit_product_id');
+            const editProductName = document.getElementById('edit_product_name');
+            const editCostPrice = document.getElementById('edit_cost_price');
+            const editPrice = document.getElementById('edit_price');
+            const editReorderLevel = document.getElementById('edit_reorder_level');
+            const editBarcode = document.getElementById('edit_barcode');
+            
+            if (editProductId) editProductId.value = productId;
+            if (editProductName) editProductName.value = productName;
+            if (editCostPrice) editCostPrice.value = costPrice;
+            if (editPrice) editPrice.value = price;
+            if (editReorderLevel) editReorderLevel.value = reorderLevel;
+            if (editBarcode) editBarcode.value = barcode;
             
             // Set category dropdown
             const categorySelect = document.getElementById('edit_category_id');
-            for (let option of categorySelect.options) {
-                if (option.text === categoryName) {
-                    option.selected = true;
-                    break;
+            if (categorySelect) {
+                for (let option of categorySelect.options) {
+                    if (option.text === categoryName) {
+                        option.selected = true;
+                        break;
+                    }
                 }
             }
             
             // Set supplier dropdown
             const supplierSelect = document.getElementById('edit_supplier_id');
-            for (let option of supplierSelect.options) {
-                if (option.text === supplierName) {
-                    option.selected = true;
-                    break;
+            if (supplierSelect) {
+                for (let option of supplierSelect.options) {
+                    if (option.text === supplierName) {
+                        option.selected = true;
+                        break;
+                    }
                 }
             }
             
@@ -1097,16 +1416,21 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
             const imagePreview = document.getElementById('current_image_preview');
             const currentImage = document.getElementById('current_image');
             
-            if (imageSrc && !imageSrc.includes('bi-image')) {
-                currentImage.src = imageSrc;
-                imagePreview.style.display = 'block';
-            } else {
-                imagePreview.style.display = 'none';
+            if (imagePreview && currentImage) {
+                if (imageSrc && !imageSrc.includes('bi-image')) {
+                    currentImage.src = imageSrc;
+                    imagePreview.style.display = 'block';
+                } else {
+                    imagePreview.style.display = 'none';
+                }
             }
             
             // Show the modal
-            const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
-            modal.show();
+            const modalElement = document.getElementById('editProductModal');
+            if (modalElement) {
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+            }
         }
 
         // Delete product function

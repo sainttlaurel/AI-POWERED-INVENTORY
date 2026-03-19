@@ -1,145 +1,76 @@
 <?php
 require_once 'config/database.php';
 require_once 'config/session.php';
+
 requireLogin();
+
+$product_id = (int)($_GET['id'] ?? 0);
+
+if ($product_id <= 0) {
+    header("Location: products.php?error=" . urlencode("Invalid product ID"));
+    exit();
+}
 
 $database = new Database();
 $db = $database->getConnection();
 
-$product_id = $_GET['id'] ?? 0;
-$success_message = '';
-$error_message = '';
-
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        die('Invalid CSRF token');
-    }
-    
-    if ($_POST['action'] === 'adjust_stock') {
-        $adjustment = (int)$_POST['adjustment'];
-        $adjustment_type = $_POST['adjustment_type'];
-        $notes = $_POST['notes'] ?? '';
-        
-        try {
-            $db->beginTransaction();
-            
-            if ($adjustment_type === 'add') {
-                $stmt = $db->prepare("UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?");
-                $stmt->execute([$adjustment, $product_id]);
-                $action_log = 'stock_in';
-            } else {
-                $stmt = $db->prepare("UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?");
-                $stmt->execute([$adjustment, $product_id]);
-                $action_log = 'stock_out';
-            }
-            
-            // Log the adjustment
-            $stmt = $db->prepare("INSERT INTO inventory_logs (product_id, action, quantity, user_id, notes) 
-                                  VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$product_id, $action_log, $adjustment, $_SESSION['user_id'], $notes]);
-            
-            $db->commit();
-            $success_message = "Stock adjusted successfully!";
-        } catch (Exception $e) {
-            $db->rollback();
-            $error_message = "Error adjusting stock: " . $e->getMessage();
-        }
-    }
-    
-    if ($_POST['action'] === 'edit_product') {
-        $image = $_POST['current_image'];
-        
-        // Handle image upload
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
-            $target_dir = "uploads/";
-            if (!file_exists($target_dir)) {
-                mkdir($target_dir, 0777, true);
-            }
-            
-            // Validate file type
-            $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            $file_type = $_FILES['image']['type'];
-            
-            if (in_array($file_type, $allowed_types)) {
-                $image = time() . '_' . basename($_FILES["image"]["name"]);
-                if (!move_uploaded_file($_FILES["image"]["tmp_name"], "{$target_dir}{$image}")) {
-                    $error_message = "Failed to upload image.";
-                    $image = $_POST['current_image']; // Keep current image on failure
-                }
-            } else {
-                $error_message = "Invalid file type. Please upload JPG, PNG, GIF, or WebP images only.";
-                $image = $_POST['current_image']; // Keep current image on failure
-            }
-        }
-        
-        if (empty($error_message)) {
-            try {
-                $query = "UPDATE products SET 
-                          product_name = ?, 
-                          category_id = ?, 
-                          supplier_id = ?, 
-                          price = ?, 
-                          reorder_level = ?, 
-                          barcode = ?, 
-                          image = ? 
-                          WHERE id = ?";
-                
-                $stmt = $db->prepare($query);
-                $stmt->execute([
-                    $_POST['product_name'],
-                    $_POST['category_id'],
-                    $_POST['supplier_id'],
-                    $_POST['price'],
-                    $_POST['reorder_level'],
-                    $_POST['barcode'],
-                    $image,
-                    $product_id
-                ]);
-                
-                $success_message = "Product updated successfully!";
-            } catch (Exception $e) {
-                $error_message = "Error updating product: " . $e->getMessage();
-            }
-        }
-    }
+// Check if QR code columns exist
+$qr_columns_exist = false;
+try {
+    $stmt = $db->query("SHOW COLUMNS FROM products LIKE 'qr_code'");
+    $qr_columns_exist = $stmt->rowCount() > 0;
+} catch (Exception $e) {
+    // Columns don't exist
 }
 
-$stmt = $db->prepare("SELECT p.*, c.name as category_name, s.name as supplier_name FROM products p LEFT JOIN categories c ON p.category_id = c.id LEFT JOIN suppliers s ON p.supplier_id = s.id WHERE p.id = :id");
-$stmt->execute([':id' => $product_id]);
+// Get product details
+$stmt = $db->prepare("
+    SELECT p.*, c.name as category_name, s.name as supplier_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    WHERE p.id = ?
+");
+$stmt->execute([$product_id]);
 $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$product) {
-    header("Location: products.php");
+    header("Location: products.php?error=" . urlencode("Product not found"));
     exit();
 }
 
-$stmt = $db->prepare("SELECT * FROM forecast_data WHERE product_id = :id");
-$stmt->execute([':id' => $product_id]);
-$forecast = $stmt->fetch(PDO::FETCH_ASSOC);
-
-$stmt = $db->prepare("SELECT * FROM sales WHERE product_id = :id ORDER BY created_at DESC LIMIT 10");
-$stmt->execute([':id' => $product_id]);
-$sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Get recent stock adjustments
-$stmt = $db->prepare("SELECT il.*, u.username FROM inventory_logs il 
-                      LEFT JOIN users u ON il.user_id = u.id 
-                      WHERE il.product_id = :id 
-                      ORDER BY il.created_at DESC LIMIT 10");
-$stmt->execute([':id' => $product_id]);
-$stock_logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Get categories and suppliers for edit form
-$categories = $db->query("SELECT * FROM categories")->fetchAll(PDO::FETCH_ASSOC);
-$suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
+// Log QR scan if accessed via QR code and QR tables exist
+if (isset($_GET['qr_scan']) && $qr_columns_exist) {
+    try {
+        // Check if qr_scans table exists
+        $stmt = $db->query("SHOW TABLES LIKE 'qr_scans'");
+        $qr_scans_exists = $stmt->rowCount() > 0;
+        
+        if ($qr_scans_exists) {
+            $stmt = $db->prepare("
+                INSERT INTO qr_scans (product_id, user_id, scan_type, ip_address, user_agent)
+                VALUES (?, ?, 'manual', ?, ?)
+            ");
+            $stmt->execute([
+                $product_id,
+                $_SESSION['user_id'],
+                $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+            ]);
+        }
+    } catch (Exception $e) {
+        // Silently fail - don't break the page
+        error_log("QR scan logging error: " . $e->getMessage());
+    }
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($product['product_name']); ?> - Details</title>
+    <title><?php echo htmlspecialchars($product['product_name']); ?> - Product Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/style.css">
@@ -148,452 +79,319 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
     <?php include 'includes/navbar.php'; ?>
     
     <div class="container-fluid">
-        <div class="sidebar-overlay"></div>
-        <?php include 'includes/sidebar.php'; ?>
-        
-        <main>
-                <?php if ($success_message): ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <?php echo $success_message; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if ($error_message): ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <?php echo $error_message; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                <?php endif; ?>
-
+        <div class="row">
+            <?php include 'includes/sidebar.php'; ?>
+            
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2"><?php echo htmlspecialchars($product['product_name']); ?></h1>
-                    <div>
-                        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#adjustStockModal">
-                            <i class="bi bi-plus-minus"></i> Adjust Stock
-                        </button>
-                        <?php if (isAdmin()): ?>
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProductModal">
-                                <i class="bi bi-pencil"></i> Edit Product
-                            </button>
+                    <h1 class="h2">
+                        <i class="bi bi-box-seam"></i> Product Details
+                        <?php if (isset($_GET['qr_scan'])): ?>
+                            <span class="badge bg-success ms-2">
+                                <i class="bi bi-qr-code"></i> Scanned via QR
+                            </span>
                         <?php endif; ?>
-                        <a href="products.php" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Back to Products
-                        </a>
+                    </h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button class="btn btn-secondary" onclick="history.back()">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
+                            <button class="btn btn-primary" onclick="window.location.href='products.php?highlight=<?php echo $product['id']; ?>'">
+                                <i class="bi bi-list"></i> View in Products
+                            </button>
+                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#quickStockModal">
+                                <i class="bi bi-plus-minus"></i> Update Stock
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <div class="row">
+                    <!-- Product Image and QR Code -->
                     <div class="col-md-4">
                         <div class="card">
+                            <div class="card-header">
+                                <h5><i class="bi bi-image"></i> Product Image</h5>
+                            </div>
                             <div class="card-body text-center">
                                 <?php if ($product['image']): ?>
-                                    <img src="uploads/<?php echo htmlspecialchars($product['image']); ?>" class="img-fluid" alt="Product">
+                                    <img src="uploads/<?php echo htmlspecialchars($product['image']); ?>" 
+                                         class="img-fluid rounded mb-3" 
+                                         alt="<?php echo htmlspecialchars($product['product_name']); ?>"
+                                         style="max-height: 300px;">
                                 <?php else: ?>
-                                    <div class="bg-secondary" style="height:300px;"></div>
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" style="height: 200px;">
+                                        <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                    </div>
                                 <?php endif; ?>
+                                
+                                <!-- QR Code -->
+                                <div class="mt-3">
+                                    <h6><i class="bi bi-qr-code"></i> QR Code</h6>
+                                    <?php if ($qr_columns_exist): ?>
+                                        <div class="d-flex justify-content-center">
+                                            <canvas id="productQR" width="150" height="150"></canvas>
+                                        </div>
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-primary" onclick="downloadQR()">
+                                                <i class="bi bi-download"></i> Download
+                                            </button>
+                                            <button class="btn btn-sm btn-info" onclick="printQR()">
+                                                <i class="bi bi-printer"></i> Print
+                                            </button>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle"></i>
+                                            QR code features not set up yet.
+                                            <a href="setup_qr_features.php" class="btn btn-sm btn-primary ms-2">
+                                                <i class="bi bi-gear"></i> Setup QR Features
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- Product Information -->
                     <div class="col-md-8">
-                        <div class="card mb-3">
-                            <div class="card-header">Product Information</div>
-                            <div class="card-body">
-                                <table class="table">
-                                    <tr><th>Category:</th><td><?php echo htmlspecialchars($product['category_name']); ?></td></tr>
-                                    <tr><th>Supplier:</th><td><?php echo htmlspecialchars($product['supplier_name']); ?></td></tr>
-                                    <tr><th>Cost Price:</th><td>₱<?php echo number_format($product['cost_price'] ?? 0, 2); ?></td></tr>
-                                    <tr><th>Selling Price:</th><td>₱<?php echo number_format($product['price'], 2); ?></td></tr>
-                                    <tr>
-                                        <th>Profit per Unit:</th>
-                                        <td>
-                                            <?php 
-                                            $cost_price = $product['cost_price'] ?? 0;
-                                            $selling_price = $product['price'];
-                                            $profit_per_unit = $selling_price - $cost_price;
-                                            $profit_color = $profit_per_unit > 0 ? 'text-success' : ($profit_per_unit < 0 ? 'text-danger' : 'text-muted');
-                                            ?>
-                                            <span class="<?php echo $profit_color; ?> fw-bold fs-5">
-                                                ₱<?php echo number_format($profit_per_unit, 2); ?>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Profit Margin:</th>
-                                        <td>
-                                            <?php 
-                                            $profit_percentage = $cost_price > 0 ? (($profit_per_unit / $cost_price) * 100) : 0;
-                                            $percentage_color = $profit_percentage > 20 ? 'success' : ($profit_percentage > 10 ? 'warning' : 'danger');
-                                            ?>
-                                            <span class="badge bg-<?php echo $percentage_color; ?> fs-6">
-                                                <?php echo number_format($profit_percentage, 1); ?>%
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Stock:</th>
-                                        <td>
-                                            <span class="badge <?php echo $product['stock_quantity'] <= $product['reorder_level'] ? 'bg-danger' : 'bg-success'; ?> fs-6">
-                                                <?php echo $product['stock_quantity']; ?> units
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    <tr><th>Reorder Level:</th><td><?php echo $product['reorder_level']; ?></td></tr>
-                                    <tr><th>Barcode:</th><td><?php echo htmlspecialchars($product['barcode']); ?></td></tr>
-                                    <tr><th>Date Added:</th><td><?php echo date('M d, Y', strtotime($product['date_added'])); ?></td></tr>
-                                </table>
-                            </div>
-                        </div>
-
-                        <?php if ($forecast): ?>
-                        <div class="card mb-3">
-                            <div class="card-header bg-info text-white">AI Forecast</div>
-                            <div class="card-body">
-                                <p><strong>Average Daily Sales:</strong> <?php echo number_format($forecast['avg_daily_sales'], 2); ?> units</p>
-                                <p><strong>Weekly Forecast:</strong> <?php echo number_format($forecast['forecast_weekly'], 0); ?> units</p>
-                                <p><strong>Monthly Forecast:</strong> <?php echo number_format($forecast['forecast_monthly'], 0); ?> units</p>
-                                <p><strong>Predicted Depletion:</strong> <?php echo $forecast['predicted_depletion_days']; ?> days</p>
-                                <p><strong>Reorder Suggestion:</strong> <?php echo $forecast['reorder_suggestion']; ?> units</p>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-
-                        <!-- Profit Analysis Section -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-success text-white">
-                                <i class="bi bi-graph-up"></i> Profit Analysis
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="bi bi-info-circle"></i> Product Information</h5>
                             </div>
                             <div class="card-body">
-                                <?php 
-                                $cost_price = $product['cost_price'] ?? 0;
-                                $selling_price = $product['price'];
-                                $current_stock = $product['stock_quantity'];
-                                $profit_per_unit = $selling_price - $cost_price;
-                                $total_investment = $cost_price * $current_stock;
-                                $potential_revenue = $selling_price * $current_stock;
-                                $potential_profit = $profit_per_unit * $current_stock;
-                                ?>
-                                
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <h6 class="text-muted">Current Stock Analysis</h6>
-                                        <p><strong>Total Investment:</strong> ₱<?php echo number_format($total_investment, 2); ?></p>
-                                        <p><strong>Potential Revenue:</strong> ₱<?php echo number_format($potential_revenue, 2); ?></p>
-                                        <p><strong>Potential Profit:</strong> 
-                                            <span class="<?php echo $potential_profit > 0 ? 'text-success' : 'text-danger'; ?> fw-bold">
-                                                ₱<?php echo number_format($potential_profit, 2); ?>
-                                            </span>
-                                        </p>
+                                        <table class="table table-borderless">
+                                            <tr>
+                                                <td><strong>Product Name:</strong></td>
+                                                <td><?php echo htmlspecialchars($product['product_name']); ?></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Category:</strong></td>
+                                                <td><?php echo htmlspecialchars($product['category_name'] ?? 'Uncategorized'); ?></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Supplier:</strong></td>
+                                                <td><?php echo htmlspecialchars($product['supplier_name'] ?? 'No Supplier'); ?></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Barcode:</strong></td>
+                                                <td><?php echo htmlspecialchars($product['barcode'] ?: 'N/A'); ?></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Date Added:</strong></td>
+                                                <td><?php echo date('M d, Y', strtotime($product['date_added'])); ?></td>
+                                            </tr>
+                                        </table>
                                     </div>
                                     <div class="col-md-6">
-                                        <h6 class="text-muted">Performance Indicators</h6>
-                                        <?php if ($profit_percentage > 30): ?>
-                                            <div class="alert alert-success py-2">
-                                                <i class="bi bi-check-circle"></i> Excellent profit margin (<?php echo number_format($profit_percentage, 1); ?>%)
-                                            </div>
-                                        <?php elseif ($profit_percentage > 15): ?>
-                                            <div class="alert alert-warning py-2">
-                                                <i class="bi bi-exclamation-triangle"></i> Good profit margin (<?php echo number_format($profit_percentage, 1); ?>%)
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="alert alert-danger py-2">
-                                                <i class="bi bi-x-circle"></i> Low profit margin (<?php echo number_format($profit_percentage, 1); ?>%)
-                                            </div>
-                                        <?php endif; ?>
-                                        
-                                        <?php if ($cost_price > 0): ?>
-                                            <p><small class="text-muted">
-                                                Break-even price: ₱<?php echo number_format($cost_price, 2); ?><br>
-                                                Recommended minimum price: ₱<?php echo number_format($cost_price * 1.2, 2); ?> (20% margin)
-                                            </small></p>
-                                        <?php endif; ?>
+                                        <table class="table table-borderless">
+                                            <tr>
+                                                <td><strong>Selling Price:</strong></td>
+                                                <td class="text-success">₱<?php echo number_format($product['price'], 2); ?></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Cost Price:</strong></td>
+                                                <td>₱<?php echo number_format($product['cost_price'], 2); ?></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Current Stock:</strong></td>
+                                                <td>
+                                                    <span class="badge <?php echo $product['stock_quantity'] <= $product['reorder_level'] ? 'bg-warning' : 'bg-success'; ?>">
+                                                        <?php echo $product['stock_quantity']; ?> units
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Reorder Level:</strong></td>
+                                                <td><?php echo $product['reorder_level']; ?> units</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Profit Margin:</strong></td>
+                                                <td class="text-info">
+                                                    <?php 
+                                                    $margin = (($product['price'] - $product['cost_price']) / $product['price']) * 100;
+                                                    echo number_format($margin, 1) . '%';
+                                                    ?>
+                                                </td>
+                                            </tr>
+                                        </table>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mt-3">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">Sales History</div>
-                            <div class="card-body">
-                                <?php if (empty($sales)): ?>
-                                    <p class="text-muted">No sales recorded yet.</p>
-                                <?php else: ?>
-                                    <table class="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>Quantity</th>
-                                                <th>Total Price</th>
-                                                <th>Date</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($sales as $sale): ?>
-                                                <tr>
-                                                    <td><?php echo $sale['quantity']; ?></td>
-                                                    <td>₱<?php echo number_format($sale['total_price'], 2); ?></td>
-                                                    <td><?php echo date('M d, Y H:i', strtotime($sale['created_at'])); ?></td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">Stock Adjustments</div>
-                            <div class="card-body">
-                                <?php if (empty($stock_logs)): ?>
-                                    <p class="text-muted">No stock adjustments recorded yet.</p>
-                                <?php else: ?>
-                                    <table class="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>Action</th>
-                                                <th>Qty</th>
-                                                <th>User</th>
-                                                <th>Date</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($stock_logs as $log): ?>
-                                                <tr>
-                                                    <td>
-                                                        <span class="badge <?php echo $log['action'] === 'stock_in' ? 'bg-success' : 'bg-warning'; ?>">
-                                                            <?php echo $log['action'] === 'stock_in' ? '+' : '-'; ?><?php echo $log['quantity']; ?>
-                                                        </span>
-                                                    </td>
-                                                    <td><?php echo $log['quantity']; ?></td>
-                                                    <td><?php echo htmlspecialchars($log['username'] ?? 'System'); ?></td>
-                                                    <td><?php echo date('M d, H:i', strtotime($log['created_at'])); ?></td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
+                                
+                                <?php if ($product['stock_quantity'] <= $product['reorder_level']): ?>
+                                    <div class="alert alert-warning">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        <strong>Low Stock Alert!</strong> 
+                                        This product is at or below the reorder level. Consider restocking soon.
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
                     </div>
                 </div>
-        </main>
+            </main>
+        </div>
     </div>
 
-    <!-- Stock Adjustment Modal -->
-    <div class="modal fade" id="adjustStockModal" tabindex="-1">
+    <!-- Quick Stock Update Modal -->
+    <div class="modal fade" id="quickStockModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="POST">
-                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                    <input type="hidden" name="action" value="adjust_stock">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="bi bi-plus-minus"></i> Adjust Stock - <?php echo htmlspecialchars($product['product_name']); ?>
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> Current Stock: <strong><?php echo $product['stock_quantity']; ?> units</strong>
-                        </div>
-                        
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-minus"></i> Quick Stock Update</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickStockForm">
+                        <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
                         <div class="mb-3">
-                            <label class="form-label">Adjustment Type</label>
-                            <select name="adjustment_type" class="form-select" required>
-                                <option value="add">Add Stock (+)</option>
-                                <option value="remove">Remove Stock (-)</option>
+                            <label class="form-label">Current Stock</label>
+                            <input type="text" class="form-control" value="<?php echo $product['stock_quantity']; ?> units" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Action</label>
+                            <select name="action" class="form-select" required>
+                                <option value="">Select action...</option>
+                                <option value="stock_in">Stock In (+)</option>
+                                <option value="stock_out">Stock Out (-)</option>
                             </select>
                         </div>
-                        
                         <div class="mb-3">
                             <label class="form-label">Quantity</label>
-                            <input type="number" name="adjustment" class="form-control" min="1" required placeholder="Enter quantity to adjust">
-                            <div class="mt-2">
-                                <small class="text-muted">Quick amounts:</small>
-                                <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="setAdjustment(1)">1</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="setAdjustment(5)">5</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="setAdjustment(10)">10</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="setAdjustment(25)">25</button>
-                            </div>
+                            <input type="number" name="quantity" class="form-control" min="1" required>
                         </div>
-                        
                         <div class="mb-3">
                             <label class="form-label">Notes (Optional)</label>
-                            <textarea name="notes" class="form-control" rows="3" placeholder="Reason for adjustment..."></textarea>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Reason for stock update..."></textarea>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-warning">
-                            <i class="bi bi-check-lg"></i> Adjust Stock
-                        </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitQuickStock()">Update Stock</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Edit Product Modal -->
-    <?php if (isAdmin()): ?>
-    <div class="modal fade" id="editProductModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                    <input type="hidden" name="action" value="edit_product">
-                    <input type="hidden" name="current_image" value="<?php echo htmlspecialchars($product['image']); ?>">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="bi bi-pencil"></i> Edit Product
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Product Name</label>
-                                    <input type="text" name="product_name" class="form-control" value="<?php echo htmlspecialchars($product['product_name']); ?>" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Category</label>
-                                    <select name="category_id" class="form-select" required>
-                                        <?php foreach ($categories as $cat): ?>
-                                            <option value="<?php echo $cat['id']; ?>" <?php echo $cat['id'] == $product['category_id'] ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($cat['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Supplier</label>
-                                    <select name="supplier_id" class="form-select" required>
-                                        <?php foreach ($suppliers as $sup): ?>
-                                            <option value="<?php echo $sup['id']; ?>" <?php echo $sup['id'] == $product['supplier_id'] ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($sup['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Cost Price</label>
-                                    <input type="number" step="0.01" name="cost_price" class="form-control" value="<?php echo $product['cost_price'] ?? 0; ?>" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Selling Price</label>
-                                    <input type="number" step="0.01" name="price" class="form-control" value="<?php echo $product['price']; ?>" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Reorder Level</label>
-                                    <input type="number" name="reorder_level" class="form-control" value="<?php echo $product['reorder_level']; ?>" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Barcode</label>
-                                    <input type="text" name="barcode" class="form-control" value="<?php echo htmlspecialchars($product['barcode']); ?>">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Product Image</label>
-                            <?php if ($product['image']): ?>
-                                <div class="mb-2">
-                                    <img src="uploads/<?php echo htmlspecialchars($product['image']); ?>" width="100" height="100" class="img-thumbnail">
-                                    <small class="text-muted d-block">Current image</small>
-                                </div>
-                            <?php endif; ?>
-                            <input type="file" name="image" class="form-control" accept="image/*">
-                            <small class="text-muted">Leave empty to keep current image</small>
-                        </div>
-                        
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle"></i> 
-                            <strong>Note:</strong> Stock quantity cannot be changed here. Use the "Adjust Stock" button to modify inventory levels.
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg"></i> Update Product
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <?php include 'includes/chatbot.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/chatbot.js"></script>
-    <script src="js/mobile.js?v=<?php echo time(); ?>"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    
     <script>
-        // Stock adjustment preview
+        // Generate QR code for this product (only if QR features are enabled)
         document.addEventListener('DOMContentLoaded', function() {
-            const adjustmentType = document.querySelector('select[name="adjustment_type"]');
-            const adjustmentQty = document.querySelector('input[name="adjustment"]');
-            const currentStock = <?php echo $product['stock_quantity']; ?>;
+            <?php if ($qr_columns_exist): ?>
+            const qrData = {
+                type: 'product',
+                id: <?php echo $product['id']; ?>,
+                name: <?php echo json_encode($product['product_name']); ?>,
+                barcode: <?php echo json_encode($product['barcode']); ?>,
+                url: `${window.location.origin}/INVENTORY/product_detail.php?id=<?php echo $product['id']; ?>&qr_scan=1`,
+                timestamp: Date.now()
+            };
             
-            function updatePreview() {
-                if (adjustmentQty && adjustmentType) {
-                    const qty = parseInt(adjustmentQty.value) || 0;
-                    const type = adjustmentType.value;
-                    let newStock = currentStock;
-                    
-                    if (type === 'add') {
-                        newStock = currentStock + qty;
-                    } else {
-                        newStock = currentStock - qty;
+            const canvas = document.getElementById('productQR');
+            if (canvas) {
+                QRCode.toCanvas(canvas, JSON.stringify(qrData), {
+                    width: 150,
+                    height: 150,
+                    margin: 2,
+                    color: {
+                        dark: '#1c1c1e',
+                        light: '#ffffff'
                     }
-                    
-                    // Update preview in modal
-                    let preview = document.querySelector('.stock-preview');
-                    if (!preview) {
-                        preview = document.createElement('div');
-                        preview.className = 'stock-preview alert alert-secondary mt-2';
-                        adjustmentQty.parentNode.appendChild(preview);
+                }, (error) => {
+                    if (error) {
+                        console.error('QR Code generation error:', error);
                     }
-                    
-                    if (qty > 0) {
-                        const color = newStock < 0 ? 'text-danger' : 'text-success';
-                        preview.innerHTML = `<i class="bi bi-calculator"></i> New Stock: <span class="${color}"><strong>${newStock} units</strong></span>`;
-                        
-                        if (newStock < 0) {
-                            preview.innerHTML += '<br><small class="text-danger">⚠️ Warning: Stock will be negative!</small>';
-                        }
-                    } else {
-                        preview.innerHTML = '';
-                    }
-                }
+                });
             }
-            
-            if (adjustmentType && adjustmentQty) {
-                adjustmentType.addEventListener('change', updatePreview);
-                adjustmentQty.addEventListener('input', updatePreview);
-            }
+            <?php endif; ?>
         });
         
-        // Quick adjustment buttons
-        function setAdjustment(amount) {
-            const input = document.querySelector('input[name="adjustment"]');
-            if (input) {
-                input.value = amount;
-                input.dispatchEvent(new Event('input'));
+        function downloadQR() {
+            <?php if ($qr_columns_exist): ?>
+            const canvas = document.getElementById('productQR');
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = `qr-code-<?php echo $product['id']; ?>-<?php echo preg_replace('/[^a-zA-Z0-9]/', '-', $product['product_name']); ?>.png`;
+                link.href = canvas.toDataURL();
+                link.click();
             }
+            <?php else: ?>
+            alert('QR code features not set up yet. Please run setup first.');
+            <?php endif; ?>
+        }
+        
+        function printQR() {
+            <?php if ($qr_columns_exist): ?>
+            const canvas = document.getElementById('productQR');
+            if (canvas) {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>QR Code - <?php echo htmlspecialchars($product['product_name']); ?></title>
+                            <style>
+                                body { text-align: center; font-family: Arial, sans-serif; padding: 20px; }
+                                .qr-container { margin: 20px auto; max-width: 300px; }
+                                .qr-code { border: 1px solid #ddd; margin: 20px 0; }
+                                h2 { color: #333; }
+                                .details { text-align: left; margin-top: 20px; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="qr-container">
+                                <h2><?php echo htmlspecialchars($product['product_name']); ?></h2>
+                                <img src="${canvas.toDataURL()}" class="qr-code" alt="QR Code">
+                                <div class="details">
+                                    <p><strong>Product ID:</strong> <?php echo $product['id']; ?></p>
+                                    <p><strong>Barcode:</strong> <?php echo htmlspecialchars($product['barcode'] ?: 'N/A'); ?></p>
+                                    <p><strong>Stock:</strong> <?php echo $product['stock_quantity']; ?> units</p>
+                                    <p><strong>Price:</strong> ₱<?php echo number_format($product['price'], 2); ?></p>
+                                </div>
+                            </div>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+            }
+            <?php else: ?>
+            alert('QR code features not set up yet. Please run setup first.');
+            <?php endif; ?>
+        }
+        
+        function submitQuickStock() {
+            const form = document.getElementById('quickStockForm');
+            const formData = new FormData(form);
+            
+            fetch('api/quick_stock_update.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('quickStockModal'));
+                    modal.hide();
+                    
+                    // Show success message and reload
+                    alert('Stock updated successfully!');
+                    location.reload();
+                } else {
+                    alert(data.message || 'Error updating stock');
+                }
+            })
+            .catch(error => {
+                console.error('Stock update error:', error);
+                alert('Error updating stock');
+            });
         }
     </script>
 </body>

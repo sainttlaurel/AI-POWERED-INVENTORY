@@ -120,14 +120,17 @@ try {
                     </h1>
                     <p class="text-muted mb-0">Stay updated with your inventory alerts</p>
                 </div>
-                <div class="d-flex flex-wrap gap-2 align-items-center">
+                <div class="d-flex gap-2 align-items-center">
                     <?php if ($unread_count > 0): ?>
-                        <button class="btn btn-success btn-sm" onclick="markAllAsRead()" id="mark-all-btn">
+                        <button class="btn btn-success" onclick="markAllAsRead()" id="mark-all-btn">
                             <i class="bi bi-check-all me-1"></i> Mark All Read
                         </button>
                     <?php endif; ?>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="checkLowStock()">
+                    <button class="btn btn-outline-secondary" onclick="checkLowStock()">
                         <i class="bi bi-search me-1"></i> Check Stock
+                    </button>
+                    <button class="btn btn-primary" onclick="refreshNotifications()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Refresh
                     </button>
                 </div>
             </div>
@@ -428,6 +431,18 @@ try {
             }
         }
 
+        // Refresh notifications function
+        function refreshNotifications() {
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Refreshing...';
+            
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+        
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateUnreadCount();

@@ -523,16 +523,16 @@ try {
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-arrow-left-right"></i> Inventory Management</h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <button onclick="printInventory()" class="btn btn-outline-secondary rounded-pill px-4 py-2">
+                    <button onclick="printInventory()" class="btn btn-outline-secondary">
                         <i class="bi bi-printer me-2"></i> Print
                     </button>
-                    <button onclick="exportInventoryCSV()" class="btn btn-outline-success rounded-pill px-4 py-2">
+                    <button onclick="exportInventoryCSV()" class="btn btn-outline-success">
                         <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export CSV
                     </button>
-                    <button class="btn btn-success rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#stockInModal">
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#stockInModal">
                         <i class="bi bi-arrow-down-circle me-2"></i> Stock In
                     </button>
-                    <button class="btn btn-warning rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+                    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#stockOutModal">
                         <i class="bi bi-arrow-up-circle me-2"></i> Stock Out / Sale
                     </button>
                 </div>
@@ -570,6 +570,7 @@ try {
                                 <table class="table table-striped table-hover" id="inventoryTable">
                                     <thead class="table-dark">
                                         <tr>
+                                            <th>#</th>
                                             <th>Product</th>
                                             <th>Action</th>
                                             <th>Quantity</th>
@@ -579,8 +580,9 @@ try {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($logs as $log): ?>
+                                        <?php foreach ($logs as $index => $log): ?>
                                             <tr>
+                                                <td><?php echo $index + 1; ?></td>
                                                 <td><?php echo htmlspecialchars($log['product_name']); ?></td>
                                                 <td>
                                                     <span class="badge <?php echo $log['action'] === 'stock_in' ? 'bg-success' : 'bg-warning'; ?>">
@@ -695,11 +697,11 @@ try {
                         <?php endif; ?>
                     </div>
                     <div class="modal-footer d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-lg me-2"></i> Close
                         </button>
                         <?php if (!empty($products)): ?>
-                            <button type="submit" class="btn btn-success rounded-pill px-4 py-2">
+                            <button type="submit" class="btn btn-success">
                                 <i class="bi bi-plus-circle me-2"></i> Add Stock
                             </button>
                         <?php endif; ?>
@@ -876,7 +878,7 @@ try {
                                     <div class="card">
                                         <div class="card-header d-flex justify-content-between align-items-center">
                                             <h6 class="mb-0"><i class="bi bi-cart"></i> Shopping Cart</h6>
-                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="clearCart()">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearCart()">
                                                 <i class="bi bi-trash me-1"></i> Clear All
                                             </button>
                                         </div>
@@ -920,11 +922,11 @@ try {
                         <?php endif; ?>
                     </div>
                     <div class="modal-footer d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-lg me-2"></i> Cancel
                         </button>
                         <?php if (!empty($products)): ?>
-                            <button type="submit" class="btn btn-success rounded-pill px-4 py-2" id="completeSaleBtn" disabled>
+                            <button type="submit" class="btn btn-success" id="completeSaleBtn" disabled>
                                 <i class="bi bi-cart-check me-2"></i> Complete Sale - ₱<span id="footerTotal">0.00</span>
                             </button>
                         <?php endif; ?>
@@ -1043,14 +1045,14 @@ try {
                         </div>
                     </div>
                     <div class="modal-footer d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2" onclick="closeSaleReceipt()">
+                                        <button type="button" class="btn btn-secondary" onclick="closeSaleReceipt()">
                             <i class="bi bi-x-circle me-2"></i> Close
                         </button>
-                        <button type="button" class="btn btn-primary rounded-pill px-4 py-2" onclick="printSaleReceipt()">
+                        <button type="button" class="btn btn-primary" onclick="printSaleReceipt()">
                             <i class="bi bi-printer me-2"></i> Print Receipt
                         </button>
                         <button type="button" class="btn btn-success" onclick="newSale()">
-                            <i class="bi bi-plus-circle"></i> New Sale
+                            <i class="bi bi-plus-circle me-2"></i> New Sale
                         </button>
                     </div>
                 </div>
@@ -1338,7 +1340,7 @@ try {
                                     ₱${item.price.toFixed(2)} × ${item.quantity} = ₱${item.total.toFixed(2)}
                                 </small>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2" onclick="removeFromCart(${index})">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${index})">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
