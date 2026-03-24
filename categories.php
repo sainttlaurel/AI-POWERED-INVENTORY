@@ -734,10 +734,6 @@ try {
                         <i class="bi bi-plus-lg me-2"></i> Add Location
                     </button>
                 </div>
-            </div>gle="modal" data-bs-target="#addSupplierModal">
-                        <i class="bi bi-plus-lg me-2"></i> Add Supplier
-                    </button>
-                </div>
             </div>
 
             <!-- Navigation Tabs -->

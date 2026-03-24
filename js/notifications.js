@@ -24,17 +24,7 @@ window.NotificationManager = {
                 const badge = document.createElement('span');
                 badge.id = 'notification-count';
                 badge.className = 'notification-badge';
-                
-                // For count of 1, show just a dot (empty badge)
-                if (count === 1) {
-                    badge.textContent = '';
-                    badge.style.width = '8px';
-                    badge.style.height = '8px';
-                    badge.style.minWidth = '8px';
-                } else {
-                    badge.textContent = count > 99 ? '99+' : count;
-                }
-                
+                badge.textContent = count > 99 ? '99+' : count;
                 navbarBell.appendChild(badge);
             }
         }
@@ -52,46 +42,8 @@ window.NotificationManager = {
         const bellElement = document.getElementById('notification-bell');
         if (!bellElement) return;
         
-        fetch('api/notifications.php?action=get_notifications&limit=5', {
-            method: 'GET',
-            credentials: 'same-origin',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    if (response.status === 400 || response.status === 401) {
-                        return null;
-                    }
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!data) return;
-                
-                if (data.success && data.data && data.data.notifications && data.data.notifications.length > 0) {
-                    const notifications = data.data.notifications;
-                    const hasCritical = notifications.some(n => n.priority === 'critical' && !n.is_read);
-                    const hasHigh = notifications.some(n => n.priority === 'high' && !n.is_read);
-                    
-                    // Remove existing priority classes
-                    bellElement.classList.remove('high-priority', 'critical-alert');
-                    
-                    // Apply priority styling
-                    if (hasCritical) {
-                        bellElement.classList.add('critical-alert');
-                    } else if (hasHigh) {
-                        bellElement.classList.add('high-priority');
-                    }
-                }
-            })
-            .catch(error => {
-                if (!error.message.includes('400') && !error.message.includes('401')) {
-                    console.log('Notification check failed:', error.message);
-                }
-            });
+        // Skip this check - it's causing 400 errors and not essential
+        // The badge count is sufficient for notification indication
     },
 
     // Fetch and update notification count
@@ -146,13 +98,11 @@ window.NotificationManager = {
                 if (response.ok) {
                     // Initial update
                     this.refreshCount();
-                    this.checkCriticalNotifications();
                     
                     // Set up regular updates
                     setInterval(() => {
                         this.refreshCount();
-                        this.checkCriticalNotifications();
-                    }, 10000); // Check every 10 seconds
+                    }, 30000); // Check every 30 seconds
                 }
             })
             .catch(() => {

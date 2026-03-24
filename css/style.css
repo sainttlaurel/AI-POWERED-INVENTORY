@@ -198,27 +198,58 @@ h1 i, h2 i, h3 i, h4 i, h5 i, h6 i {
 /* Notification badge */
 .notification-badge {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: -8px;
+    right: -8px;
     background-color: #dc3545;
     color: white;
     border-radius: 50%;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    min-width: 18px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
+    line-height: 1;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: 2px solid white;
 }
 
 .notification-btn {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: #495057;
     text-decoration: none;
     padding: 0.5rem;
+    font-size: 1.25rem;
 }
 
 .notification-btn:hover {
     color: #007bff;
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
+
+.notification-btn i {
+    font-size: 1.5rem;
+}
+
+/* Notification badge animation */
+@keyframes pulse-badge {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.notification-badge {
+    animation: pulse-badge 2s ease-in-out infinite;
 }
 
 /* User info */

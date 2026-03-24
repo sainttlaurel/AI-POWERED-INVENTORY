@@ -1,0 +1,12 @@
+# Prevent direct access to uploaded files
+Options -Indexes
+# Only allow image files
+<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+# Deny everything else
+<FilesMatch "^(?!.*\.(jpg|jpeg|png|gif|webp)$).*$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>

@@ -672,9 +672,6 @@ try {
                     <button class="btn btn-warning" onclick="toggleStickyNotes()" id="notesToggle">
                         <i class="bi bi-sticky me-2"></i> Notes
                     </button>
-                    <button class="btn btn-info" onclick="exportUserData()">
-                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export
-                    </button>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
                         <i class="bi bi-person-plus me-2"></i> Add User
                     </button>
