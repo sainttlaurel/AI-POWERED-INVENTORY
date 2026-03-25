@@ -84,11 +84,6 @@ all the detailed stuff is in the `docs/` folder:
 
 - `docs/README.md` - full feature list and setup guide
 - `docs/CHANGELOG.md` - what changed and when
-- `docs/ISSUES.md` - known issues and fixes
-- `docs/PROJECT_STRUCTURE.md` - code organization
-- `docs/QUICK_REFERENCE.md` - common tasks
-- `docs/UI_IMPLEMENTATION_GUIDE.md` - UI patterns
-- `docs/INDEX.md` - navigation for all docs
 
 ## Recent Updates (March 25, 2026)
 
