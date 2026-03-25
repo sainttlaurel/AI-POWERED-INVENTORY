@@ -44,6 +44,32 @@ try these in the chatbot:
 - `forecast`
 - `help` (shows all commands)
 
+---
+
+## SCREENSHOT
+- some parts of the system in action:
+
+## Dashboard
+<img width="1919" height="959" alt="dashboard" src="https://github.com/user-attachments/assets/7875dac3-57dd-4862-aeb3-6ba2b239d59b" />
+
+## Product Management
+<img width="1919" height="966" alt="products" src="https://github.com/user-attachments/assets/ad99981c-2993-43b4-875f-bd843330cff5" />
+
+## Inventory 
+<img width="1918" height="958" alt="inventory" src="https://github.com/user-attachments/assets/8d7ea4a3-c706-46fa-9430-1ec54c3e2c04" />
+
+## Invoice System
+<img width="1918" height="959" alt="invoices" src="https://github.com/user-attachments/assets/451127d3-54d3-443e-ba72-c4004e858700" />
+
+## Reports & Analytics
+<img width="1919" height="956" alt="reports" src="https://github.com/user-attachments/assets/704b38af-4f49-466f-a684-6935cb2fd8c1" />
+<img width="1917" height="957" alt="aiforecast" src="https://github.com/user-attachments/assets/cd99bf2a-3e3a-405d-a7f5-cc784b42fa82" />
+
+## Adminpage
+<img width="1917" height="960" alt="adminpage" src="https://github.com/user-attachments/assets/0016fbec-2b47-433f-8378-82b3f56e0c23" />
+
+---
+
 ## Requirements
 
 - PHP 7.4+
