@@ -724,13 +724,14 @@ try {
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-tags"></i> Categories, Suppliers & Locations</h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <!-- Context-aware buttons - show only relevant one -->
+                    <button class="btn btn-primary add-btn" data-tab="categories" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
                         <i class="bi bi-plus-lg me-2"></i> Add Category
                     </button>
-                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+                    <button class="btn btn-primary add-btn" data-tab="suppliers" data-bs-toggle="modal" data-bs-target="#addSupplierModal" style="display: none;">
                         <i class="bi bi-plus-lg me-2"></i> Add Supplier
                     </button>
-                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addLocationModal">
+                    <button class="btn btn-primary add-btn" data-tab="locations" data-bs-toggle="modal" data-bs-target="#addLocationModal" style="display: none;">
                         <i class="bi bi-plus-lg me-2"></i> Add Location
                     </button>
                 </div>
@@ -739,17 +740,17 @@ try {
             <!-- Navigation Tabs -->
             <ul class="nav nav-tabs mb-4" id="managementTabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories-pane" type="button" role="tab">
+                    <button class="nav-link active" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories-pane" type="button" role="tab" data-tab-name="categories">
                         <i class="bi bi-tags"></i> Categories (<?php echo count($categories); ?>)
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="suppliers-tab" data-bs-toggle="tab" data-bs-target="#suppliers-pane" type="button" role="tab">
+                    <button class="nav-link" id="suppliers-tab" data-bs-toggle="tab" data-bs-target="#suppliers-pane" type="button" role="tab" data-tab-name="suppliers">
                         <i class="bi bi-truck"></i> Suppliers (<?php echo count($suppliers); ?>)
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="locations-tab" data-bs-toggle="tab" data-bs-target="#locations-pane" type="button" role="tab">
+                    <button class="nav-link" id="locations-tab" data-bs-toggle="tab" data-bs-target="#locations-pane" type="button" role="tab" data-tab-name="locations">
                         <i class="bi bi-geo-alt"></i> Locations (<?php echo count($locations); ?>)
                     </button>
                 </li>
@@ -794,10 +795,11 @@ try {
                                                     </td>
                                                     <td>
                                                         <?php if (isAdmin()): ?>
-                                                            <div class="d-flex gap-2">
-                                                                <button class="btn btn-sm btn-primary" 
+                                                            <div class="action-buttons">
+                                                                <button class="btn btn-icon" 
+                                                                        title="Edit Category"
                                                                         onclick="editCategory(<?php echo $category['id']; ?>, '<?php echo htmlspecialchars($category['name']); ?>', '<?php echo htmlspecialchars($category['description'] ?? ''); ?>')">
-                                                                    <i class="bi bi-pencil me-1"></i> Edit
+                                                                    <i class="bi bi-pencil"></i>
                                                                 </button>
                                                                 
                                                                 <?php if ($category['product_count'] == 0): ?>
@@ -806,15 +808,17 @@ try {
                                                                         <input type="hidden" name="action" value="delete">
                                                                         <input type="hidden" name="category_id" value="<?php echo $category['id']; ?>">
                                                                         <input type="hidden" name="move_to_category" value="0">
-                                                                        <button type="submit" class="btn btn-sm btn-danger" 
+                                                                        <button type="submit" class="btn btn-icon btn-danger-hover" 
+                                                                                title="Delete Category"
                                                                                 onclick="return confirm('Delete this category? This action cannot be undone.')">
-                                                                            <i class="bi bi-trash me-1"></i> Delete
+                                                                            <i class="bi bi-trash"></i>
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <button class="btn btn-sm btn-outline-danger" 
+                                                                    <button class="btn btn-icon btn-danger-hover" 
+                                                                            title="Delete Category"
                                                                             onclick="showDeleteModal(<?php echo $category['id']; ?>, '<?php echo htmlspecialchars($category['name']); ?>', <?php echo $category['product_count']; ?>)">
-                                                                        <i class="bi bi-trash me-1"></i> Delete
+                                                                        <i class="bi bi-trash"></i>
                                                                     </button>
                                                                 <?php endif; ?>
                                                             </div>
@@ -871,10 +875,11 @@ try {
                                                     </td>
                                                     <td>
                                                         <?php if (isAdmin()): ?>
-                                                            <div class="d-flex gap-2">
-                                                                <button class="btn btn-sm btn-primary" 
+                                                            <div class="action-buttons">
+                                                                <button class="btn btn-icon" 
+                                                                        title="Edit Supplier"
                                                                         onclick="editSupplier(<?php echo $supplier['id']; ?>, '<?php echo htmlspecialchars($supplier['name']); ?>', '<?php echo htmlspecialchars($supplier['contact_person'] ?? ''); ?>', '<?php echo htmlspecialchars($supplier['email'] ?? ''); ?>', '<?php echo htmlspecialchars($supplier['phone'] ?? ''); ?>', '<?php echo htmlspecialchars($supplier['address'] ?? ''); ?>')">
-                                                                    <i class="bi bi-pencil me-1"></i> Edit
+                                                                    <i class="bi bi-pencil"></i>
                                                                 </button>
                                                                 
                                                                 <?php if ($supplier['product_count'] == 0): ?>
@@ -883,15 +888,17 @@ try {
                                                                         <input type="hidden" name="action" value="delete_supplier">
                                                                         <input type="hidden" name="supplier_id" value="<?php echo $supplier['id']; ?>">
                                                                         <input type="hidden" name="move_to_supplier" value="0">
-                                                                        <button type="submit" class="btn btn-sm btn-danger" 
+                                                                        <button type="submit" class="btn btn-icon btn-danger-hover" 
+                                                                                title="Delete Supplier"
                                                                                 onclick="return confirm('Delete this supplier? This action cannot be undone.')">
-                                                                            <i class="bi bi-trash me-1"></i> Delete
+                                                                            <i class="bi bi-trash"></i>
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <button class="btn btn-sm btn-danger" 
+                                                                    <button class="btn btn-icon btn-danger-hover" 
+                                                                            title="Delete Supplier"
                                                                             onclick="showDeleteSupplierModal(<?php echo $supplier['id']; ?>, '<?php echo htmlspecialchars($supplier['name']); ?>', <?php echo $supplier['product_count']; ?>)">
-                                                                        <i class="bi bi-trash me-1"></i> Delete
+                                                                        <i class="bi bi-trash"></i>
                                                                     </button>
                                                                 <?php endif; ?>
                                                             </div>
@@ -958,10 +965,11 @@ try {
                                                     </td>
                                                     <td>
                                                         <?php if (isAdmin()): ?>
-                                                            <div class="d-flex gap-2">
-                                                                <button class="btn btn-sm btn-primary" 
+                                                            <div class="action-buttons">
+                                                                <button class="btn btn-icon" 
+                                                                        title="Edit Location"
                                                                         onclick="editLocation(<?php echo $location['id']; ?>, '<?php echo htmlspecialchars($location['name']); ?>', '<?php echo htmlspecialchars($location['code']); ?>', '<?php echo $location['type']; ?>', '<?php echo htmlspecialchars($location['address'] ?? ''); ?>', '<?php echo htmlspecialchars($location['phone'] ?? ''); ?>', '<?php echo htmlspecialchars($location['email'] ?? ''); ?>')">
-                                                                    <i class="bi bi-pencil me-1"></i> Edit
+                                                                    <i class="bi bi-pencil"></i>
                                                                 </button>
                                                                 
                                                                 <?php if ($location['total_stock'] == 0): ?>
@@ -969,13 +977,14 @@ try {
                                                                         <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                                                                         <input type="hidden" name="action" value="delete_location">
                                                                         <input type="hidden" name="location_id" value="<?php echo $location['id']; ?>">
-                                                                        <button type="submit" class="btn btn-sm btn-danger" 
+                                                                        <button type="submit" class="btn btn-icon btn-danger-hover" 
+                                                                                title="Delete Location"
                                                                                 onclick="return confirm('Delete this location? This action cannot be undone.')">
-                                                                            <i class="bi bi-trash me-1"></i> Delete
+                                                                            <i class="bi bi-trash"></i>
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <button class="btn btn-sm btn-warning" disabled title="Cannot delete location with stock">
+                                                                    <button class="btn btn-icon" disabled title="Cannot delete location with stock">
                                                                         <i class="bi bi-exclamation-triangle me-1"></i> Has Stock
                                                                     </button>
                                                                 <?php endif; ?>
@@ -1428,6 +1437,33 @@ try {
     <script src="js/mobile.js?v=<?php echo time(); ?>"></script>
     
     <script>
+        // Context-aware button switching
+        function updateActionButtons(activeTab) {
+            // Hide all add buttons
+            document.querySelectorAll('.add-btn').forEach(btn => {
+                btn.style.display = 'none';
+            });
+            
+            // Show only relevant button
+            const relevantBtn = document.querySelector(`.add-btn[data-tab="${activeTab}"]`);
+            if (relevantBtn) {
+                relevantBtn.style.display = 'inline-flex';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up tab change listeners
+            document.querySelectorAll('.nav-link[data-tab-name]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    updateActionButtons(this.dataset.tabName);
+                });
+            });
+            
+            // Initialize with categories tab
+            updateActionButtons('categories');
+        });
+
         function editCategory(id, name, description) {
             document.getElementById('edit_category_id').value = id;
             document.getElementById('edit_category_name').value = name;

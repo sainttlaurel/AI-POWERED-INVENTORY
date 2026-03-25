@@ -489,6 +489,11 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
         /* Enhanced Action Buttons Styling */
         .action-buttons {
             white-space: nowrap;
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: flex-start;
         }
         
         .action-buttons .btn {
@@ -860,15 +865,18 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                                 </button>
                             <?php endif; ?>
                         </div>
-                        <button onclick="printProducts()" class="btn btn-outline-secondary" title="Print Products Report">
-                            <i class="bi bi-printer me-2"></i> Print
+                        <!-- Tertiary: Utility actions -->
+                        <button onclick="printProducts()" class="btn btn-ghost" title="Print Products Report">
+                            <i class="bi bi-printer"></i>
                         </button>
-                        <button onclick="exportProductsCSV()" class="btn btn-outline-success" title="Export Products to CSV">
-                            <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export CSV
+                        <button onclick="exportProductsCSV()" class="btn btn-ghost" title="Export Products to CSV">
+                            <i class="bi bi-file-earmark-spreadsheet"></i>
                         </button>
-                        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#qrScannerModal">
+                        <!-- Secondary: Supporting action -->
+                        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#qrScannerModal">
                             <i class="bi bi-camera me-2"></i> Scan QR
                         </button>
+                        <!-- Primary: Main action -->
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                             <i class="bi bi-plus-lg me-2"></i> Add Product
                         </button>
@@ -951,21 +959,21 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                             <table class="table table-striped table-hover table-compact mb-0">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>
+                                        <th style="color: white;">
                                             <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
                                         </th>
-                                        <th>Image</th>
-                                        <th>Product Name</th>
-                                        <th>Category</th>
-                                        <th>Supplier</th>
-                                        <th>Cost Price</th>
-                                        <th>Selling Price</th>
-                                        <th>Profit/Unit</th>
-                                        <th>Profit %</th>
-                                        <th>Stock</th>
-                                        <th>Reorder Level</th>
-                                        <th>Barcode</th>
-                                        <th>Actions</th>
+                                        <th style="color: white;">Image</th>
+                                        <th style="color: white;">Product Name</th>
+                                        <th style="color: white;">Category</th>
+                                        <th style="color: white;">Supplier</th>
+                                        <th style="color: white;">Cost Price</th>
+                                        <th style="color: white;">Selling Price</th>
+                                        <th style="color: white;">Profit/Unit</th>
+                                        <th style="color: white;">Profit %</th>
+                                        <th style="color: white;">Stock</th>
+                                        <th style="color: white;">Reorder Level</th>
+                                        <th style="color: white;">Barcode</th>
+                                        <th style="color: white;">Actions</th>
                                     </tr>
                                 </thead>
                         <tbody>
@@ -1008,18 +1016,17 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                                             $cost_price = $product['cost_price'] ?? 0;
                                             $selling_price = $product['price'];
                                             $profit_per_unit = $selling_price - $cost_price;
-                                            $profit_color = $profit_per_unit > 0 ? 'text-success' : ($profit_per_unit < 0 ? 'text-danger' : 'text-muted');
                                             ?>
-                                            <span class="<?php echo $profit_color; ?> fw-bold">
+                                            <span class="profit-amount">
                                                 ₱<?php echo number_format($profit_per_unit, 2); ?>
                                             </span>
                                         </td>
                                         <td>
                                             <?php 
                                             $profit_percentage = $cost_price > 0 ? (($profit_per_unit / $cost_price) * 100) : 0;
-                                            $percentage_color = $profit_percentage > 20 ? 'success' : ($profit_percentage > 10 ? 'warning' : 'danger');
+                                            $badge_class = $profit_percentage > 30 ? 'high' : ($profit_percentage > 15 ? 'medium' : 'low');
                                             ?>
-                                            <span class="badge bg-<?php echo $percentage_color; ?>">
+                                            <span class="profit-badge <?php echo $badge_class; ?>">
                                                 <?php echo number_format($profit_percentage, 1); ?>%
                                             </span>
                                         </td>
@@ -1031,26 +1038,26 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                                         <td><?php echo $product['reorder_level']; ?></td>
                                         <td><?php echo htmlspecialchars($product['barcode']); ?></td>
                                         <td>
-                                            <div class="action-buttons d-flex flex-column gap-2 align-items-center justify-content-center">
+                                            <div class="action-buttons">
                                                 <a href="product_detail.php?id=<?php echo $product['id']; ?>" 
-                                                   class="btn btn-sm btn-info" 
+                                                   class="btn btn-icon" 
                                                    title="View Details"
                                                    aria-label="View details for <?php echo htmlspecialchars($product['product_name']); ?>">
-                                                    <i class="bi bi-eye"></i> View
+                                                    <i class="bi bi-eye"></i>
                                                 </a>
-                                                <button class="btn btn-sm btn-primary" 
+                                                <button class="btn btn-icon" 
                                                         onclick="openEditModal(<?php echo $product['id']; ?>)" 
                                                         title="Edit Product"
                                                         aria-label="Edit <?php echo htmlspecialchars($product['product_name']); ?>">
-                                                    <i class="bi bi-pencil"></i> Edit
+                                                    <i class="bi bi-pencil"></i>
                                                 </button>
                                                 <?php if (isAdmin()): ?>
                                                     <button type="button" 
-                                                            class="btn btn-sm btn-danger" 
+                                                            class="btn btn-icon btn-danger-hover" 
                                                             onclick="deleteProduct(<?php echo $product['id']; ?>)" 
                                                             title="Delete Product"
                                                             aria-label="Delete <?php echo htmlspecialchars($product['product_name']); ?>">
-                                                        <i class="bi bi-trash"></i> Delete
+                                                        <i class="bi bi-trash"></i>
                                                     </button>
                                                 <?php endif; ?>
                                             </div>

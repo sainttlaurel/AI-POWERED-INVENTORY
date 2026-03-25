@@ -149,14 +149,17 @@ try {
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-qr-code"></i> QR Code Management</h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#scanQRModal">
+                    <!-- Tertiary: Utility action -->
+                    <button class="btn btn-ghost" onclick="printAllQRCodes()" title="Print All QR Codes">
+                        <i class="bi bi-printer"></i>
+                    </button>
+                    <!-- Secondary: Supporting action -->
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#scanQRModal">
                         <i class="bi bi-camera me-2"></i> Scan QR
                     </button>
-                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#generateQRModal">
+                    <!-- Primary: Main action -->
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generateQRModal">
                         <i class="bi bi-plus-lg me-2"></i> Generate QR
-                    </button>
-                    <button class="btn btn-info" onclick="printAllQRCodes()">
-                        <i class="bi bi-printer me-2"></i> Print All
                     </button>
                 </div>
             </div>
@@ -243,15 +246,15 @@ try {
                                                 </span>
                                             </td>
                                             <td>
-                                                <div class="btn-group btn-group-sm" role="group">
-                                                    <button class="btn btn-primary" onclick="viewProduct(<?php echo $product['id']; ?>)" title="View Product">
-                                                        <i class="bi bi-eye"></i> View
+                                                <div class="action-buttons">
+                                                    <button class="btn btn-icon" onclick="viewProduct(<?php echo $product['id']; ?>)" title="View Product">
+                                                        <i class="bi bi-eye"></i>
                                                     </button>
-                                                    <button class="btn btn-success" onclick="downloadQR(<?php echo $product['id']; ?>)" title="Download QR">
-                                                        <i class="bi bi-download"></i> Download
+                                                    <button class="btn btn-icon" onclick="downloadQR(<?php echo $product['id']; ?>)" title="Download QR">
+                                                        <i class="bi bi-download"></i>
                                                     </button>
-                                                    <button class="btn btn-info" onclick="printQR(<?php echo $product['id']; ?>)" title="Print QR">
-                                                        <i class="bi bi-printer"></i> Print
+                                                    <button class="btn btn-icon" onclick="printQR(<?php echo $product['id']; ?>)" title="Print QR">
+                                                        <i class="bi bi-printer"></i>
                                                     </button>
                                                 </div>
                                             </td>

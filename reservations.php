@@ -125,18 +125,19 @@ $stats = $db->query("SELECT
                 <h1 class="h2"><i class="bi bi-bookmark"></i> Reservations</h1>
                 <div>
                     <div class="btn-group" role="group">
-                        <a href="?filter=active" class="btn btn-outline-primary <?php echo $filter === 'active' ? 'active' : ''; ?>">
+                        <a href="?filter=active" class="btn btn-outline-secondary <?php echo $filter === 'active' ? 'active' : ''; ?>">
                             <i class="bi bi-bookmark-check me-1"></i> Active
                         </a>
-                        <a href="?filter=completed" class="btn btn-outline-success <?php echo $filter === 'completed' ? 'active' : ''; ?>">
+                        <a href="?filter=completed" class="btn btn-outline-secondary <?php echo $filter === 'completed' ? 'active' : ''; ?>">
                             <i class="bi bi-check-circle me-1"></i> Completed
                         </a>
-                        <a href="?filter=cancelled" class="btn btn-outline-danger <?php echo $filter === 'cancelled' ? 'active' : ''; ?>">
+                        <a href="?filter=cancelled" class="btn btn-outline-secondary <?php echo $filter === 'cancelled' ? 'active' : ''; ?>">
                             <i class="bi bi-x-circle me-1"></i> Cancelled
                         </a>
                     </div>
-                    <button class="btn btn-info ms-2" onclick="exportReservations()">
-                        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export
+                    <!-- Tertiary: Utility action -->
+                    <button class="btn btn-ghost ms-2" onclick="exportReservations()" title="Export Reservations">
+                        <i class="bi bi-file-earmark-spreadsheet"></i>
                     </button>
                 </div>
             </div>
@@ -241,24 +242,26 @@ $stats = $db->query("SELECT
                                             </td>
                                             <?php if ($filter === 'active'): ?>
                                                 <td>
-                                                    <form method="POST" style="display: inline;">
-                                                        <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                                                        <input type="hidden" name="action" value="complete">
-                                                        <input type="hidden" name="reservation_id" value="<?php echo $reservation['reservation_id']; ?>">
-                                                        <button type="submit" class="btn btn-sm btn-success" title="Mark as completed">
-                                                            <i class="bi bi-check me-1"></i> Complete
-                                                        </button>
-                                                    </form>
-                                                    <form method="POST" style="display: inline;">
-                                                        <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                                                        <input type="hidden" name="action" value="cancel">
-                                                        <input type="hidden" name="reservation_id" value="<?php echo $reservation['reservation_id']; ?>">
-                                                        <button type="submit" class="btn btn-sm btn-danger" 
-                                                                onclick="return confirm('Cancel this reservation? Stock will be returned.')" 
-                                                                title="Cancel reservation">
-                                                            <i class="bi bi-x me-1"></i> Cancel
-                                                        </button>
-                                                    </form>
+                                                    <div class="action-buttons">
+                                                        <form method="POST" style="display: inline;">
+                                                            <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                                                            <input type="hidden" name="action" value="complete">
+                                                            <input type="hidden" name="reservation_id" value="<?php echo $reservation['reservation_id']; ?>">
+                                                            <button type="submit" class="btn btn-icon" title="Mark as completed">
+                                                                <i class="bi bi-check"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="POST" style="display: inline;">
+                                                            <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                                                            <input type="hidden" name="action" value="cancel">
+                                                            <input type="hidden" name="reservation_id" value="<?php echo $reservation['reservation_id']; ?>">
+                                                            <button type="submit" class="btn btn-icon btn-danger-hover" 
+                                                                    onclick="return confirm('Cancel this reservation? Stock will be returned.')" 
+                                                                    title="Cancel reservation">
+                                                                <i class="bi bi-x"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
                                                 </td>
                                             <?php endif; ?>
                                         </tr>

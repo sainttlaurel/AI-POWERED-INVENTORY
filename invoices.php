@@ -98,8 +98,9 @@ $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2"><i class="bi bi-receipt"></i> Invoices</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
+                        <!-- Primary: Main action -->
                         <a href="create_invoice.php" class="btn btn-primary">
-                            <i class="bi bi-plus-circle"></i> Create Invoice
+                            <i class="bi bi-plus-circle me-2"></i> Create Invoice
                         </a>
                     </div>
                 </div>
@@ -155,16 +156,16 @@ $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             </td>
                                             <td><?php echo date('M d, Y', strtotime($invoice['created_at'])); ?></td>
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <a href="view_invoice.php?id=<?php echo $invoice['id']; ?>" class="btn btn-sm btn-info" title="View Invoice">
-                                                        <i class="bi bi-eye"></i> View
+                                                <div class="action-buttons">
+                                                    <a href="view_invoice.php?id=<?php echo $invoice['id']; ?>" class="btn btn-icon" title="View Invoice">
+                                                        <i class="bi bi-eye"></i>
                                                     </a>
-                                                    <a href="print_invoice.php?id=<?php echo $invoice['id']; ?>" class="btn btn-sm btn-secondary" target="_blank" title="Print Invoice">
-                                                        <i class="bi bi-printer"></i> Print
+                                                    <a href="print_invoice.php?id=<?php echo $invoice['id']; ?>" class="btn btn-icon" target="_blank" title="Print Invoice">
+                                                        <i class="bi bi-printer"></i>
                                                     </a>
                                                     <?php if ($invoice['payment_status'] === 'pending' || $invoice['payment_status'] === 'partial'): ?>
-                                                        <button type="button" class="btn btn-sm btn-success" onclick="markAsPaid(<?php echo $invoice['id']; ?>, '<?php echo htmlspecialchars($invoice['invoice_number']); ?>')" title="Mark as Paid">
-                                                            <i class="bi bi-check-circle"></i> Done
+                                                        <button type="button" class="btn btn-icon" onclick="markAsPaid(<?php echo $invoice['id']; ?>, '<?php echo htmlspecialchars($invoice['invoice_number']); ?>')" title="Mark as Paid">
+                                                            <i class="bi bi-check-circle"></i>
                                                         </button>
                                                     <?php endif; ?>
                                                 </div>

@@ -669,9 +669,11 @@ try {
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-people"></i> User Management</h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-warning" onclick="toggleStickyNotes()" id="notesToggle">
+                    <!-- Secondary: Supporting action -->
+                    <button class="btn btn-outline-secondary" onclick="toggleStickyNotes()" id="notesToggle">
                         <i class="bi bi-sticky me-2"></i> Notes
                     </button>
+                    <!-- Primary: Main action -->
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
                         <i class="bi bi-person-plus me-2"></i> Add User
                     </button>
@@ -863,21 +865,21 @@ try {
                                             <span class="badge bg-info"><?php echo $user['recent_activity']; ?> actions</span>
                                         </td>
                                         <td>
-                                            <div class="btn-group" role="group">
+                                            <div class="action-buttons">
                                                 <?php if ($user['id'] != $_SESSION['user_id']): ?>
-                                                    <button class="btn btn-sm btn-outline-primary" onclick="editUser(<?php echo htmlspecialchars(json_encode($user)); ?>)" title="Edit User">
-                                                        <i class="bi bi-pencil me-1"></i> Edit
+                                                    <button class="btn btn-icon" onclick="editUser(<?php echo htmlspecialchars(json_encode($user)); ?>)" title="Edit User">
+                                                        <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <form method="POST" style="display: inline;">
                                                         <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                                                         <input type="hidden" name="action" value="reset_password">
                                                         <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                                        <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Reset password for this user?')" title="Reset Password">
-                                                            <i class="bi bi-key me-1"></i> Reset
+                                                        <button type="submit" class="btn btn-icon" onclick="return confirm('Reset password for this user?')" title="Reset Password">
+                                                            <i class="bi bi-key"></i>
                                                         </button>
                                                     </form>
                                                 <?php else: ?>
-                                                    <span class="badge bg-primary">Current User</span>
+                                                    <span class="badge bg-secondary">Current User</span>
                                                 <?php endif; ?>
                                             </div>
                                         </td>

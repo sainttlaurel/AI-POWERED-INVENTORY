@@ -523,19 +523,22 @@ try {
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-arrow-left-right"></i> Inventory Management</h1>
                 <div class="d-flex gap-2 align-items-center">
-                    <button onclick="window.location.href='qr_codes.php'" class="btn btn-outline-info">
+                    <!-- Tertiary: Utility actions -->
+                    <button onclick="printInventory()" class="btn btn-ghost" title="Print Inventory">
+                        <i class="bi bi-printer"></i>
+                    </button>
+                    <button onclick="exportInventoryCSV()" class="btn btn-ghost" title="Export to CSV">
+                        <i class="bi bi-file-earmark-spreadsheet"></i>
+                    </button>
+                    <!-- Secondary: Supporting actions -->
+                    <button onclick="window.location.href='qr_codes.php'" class="btn btn-outline-secondary">
                         <i class="bi bi-qr-code me-2"></i> QR Codes
                     </button>
-                    <button onclick="printInventory()" class="btn btn-outline-secondary">
-                        <i class="bi bi-printer me-2"></i> Print
-                    </button>
-                    <button onclick="exportInventoryCSV()" class="btn btn-outline-success">
-                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export CSV
-                    </button>
-                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#stockInModal">
+                    <!-- Primary: Main actions -->
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#stockInModal">
                         <i class="bi bi-arrow-down-circle me-2"></i> Stock In
                     </button>
-                    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#stockOutModal">
                         <i class="bi bi-arrow-up-circle me-2"></i> Stock Out / Sale
                     </button>
                 </div>
@@ -573,13 +576,13 @@ try {
                                 <table class="table table-striped table-hover" id="inventoryTable">
                                     <thead class="table-dark">
                                         <tr>
-                                            <th>#</th>
-                                            <th>Product</th>
-                                            <th>Action</th>
-                                            <th>Quantity</th>
-                                            <th>User</th>
-                                            <th>Notes</th>
-                                            <th>Date</th>
+                                            <th style="color: white;">#</th>
+                                            <th style="color: white;">Product</th>
+                                            <th style="color: white;">Action</th>
+                                            <th style="color: white;">Quantity</th>
+                                            <th style="color: white;">User</th>
+                                            <th style="color: white;">Notes</th>
+                                            <th style="color: white;">Date</th>
                                         </tr>
                                     </thead>
                                     <tbody>
