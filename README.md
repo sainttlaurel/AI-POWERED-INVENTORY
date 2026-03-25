@@ -71,9 +71,9 @@ all the detailed stuff is in the `docs/` folder:
 - loading states, animations, tooltips
 - mobile responsive tables
 - accessibility features
-- ~700 lines of CSS added
-- 25+ features implemented
-- production ready ✅
+- production ready (no not really, many to fix)
+
+---
 
 ## File Structure
 
