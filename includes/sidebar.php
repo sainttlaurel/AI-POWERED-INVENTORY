@@ -28,12 +28,6 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'qr_codes.php' ? 'active' : ''; ?>" href="qr_codes.php">
-                        <i class="bi bi-qr-code"></i>
-                        <span>QR Codes</span>
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'invoices.php' || basename($_SERVER['PHP_SELF']) == 'create_invoice.php' ? 'active' : ''; ?>" href="invoices.php">
                         <i class="bi bi-receipt"></i>
                         <span>Invoices</span>

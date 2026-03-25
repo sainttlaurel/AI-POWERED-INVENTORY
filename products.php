@@ -866,9 +866,6 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                         <button onclick="exportProductsCSV()" class="btn btn-outline-success" title="Export Products to CSV">
                             <i class="bi bi-file-earmark-spreadsheet me-2"></i> Export CSV
                         </button>
-                        <button class="btn btn-secondary" onclick="window.location.href='qr_codes.php'">
-                            <i class="bi bi-qr-code me-2"></i> QR Codes
-                        </button>
                         <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#qrScannerModal">
                             <i class="bi bi-camera me-2"></i> Scan QR
                         </button>

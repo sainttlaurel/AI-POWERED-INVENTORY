@@ -523,6 +523,9 @@ try {
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-arrow-left-right"></i> Inventory Management</h1>
                 <div class="d-flex gap-2 align-items-center">
+                    <button onclick="window.location.href='qr_codes.php'" class="btn btn-outline-info">
+                        <i class="bi bi-qr-code me-2"></i> QR Codes
+                    </button>
                     <button onclick="printInventory()" class="btn btn-outline-secondary">
                         <i class="bi bi-printer me-2"></i> Print
                     </button>

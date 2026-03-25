@@ -7,6 +7,42 @@ requireLogin();
 $database = new Database();
 $db = $database->getConnection();
 
+// Auto-create invoice tables if they don't exist (just in case)
+try {
+    $db->exec("CREATE TABLE IF NOT EXISTS invoices (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        invoice_number VARCHAR(50) NOT NULL UNIQUE,
+        customer_name VARCHAR(255) NOT NULL,
+        customer_email VARCHAR(255) DEFAULT NULL,
+        customer_phone VARCHAR(20) DEFAULT NULL,
+        customer_address TEXT DEFAULT NULL,
+        subtotal DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        tax_rate DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+        tax_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        total_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        payment_status ENUM('pending','paid','partial','cancelled') DEFAULT 'pending',
+        payment_method VARCHAR(50) DEFAULT NULL,
+        notes TEXT DEFAULT NULL,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+    
+    $db->exec("CREATE TABLE IF NOT EXISTS invoice_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        invoice_id INT NOT NULL,
+        product_id INT NOT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        quantity INT NOT NULL,
+        unit_price DECIMAL(10,2) NOT NULL,
+        subtotal DECIMAL(12,2) NOT NULL,
+        stock_status ENUM('in_stock','out_of_stock') DEFAULT 'in_stock'
+    )");
+} catch (Exception $e) {
+    // Silently fail if tables already exist
+}
+
 $invoice_id = $_GET['id'] ?? 0;
 
 // Get invoice details
