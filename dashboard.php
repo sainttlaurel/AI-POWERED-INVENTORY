@@ -1,163 +1,76 @@
 <?php
-require_once 'config/database.php';
+require_once 'config/supabase_helper.php';
 require_once 'config/session.php';
 
 requireLogin();
 
-$database = new Database();
-$db = $database->getConnection();
+$helper = new SupabaseHelper();
 
-// Count stuff
-$total_products = $db->query("SELECT COUNT(*) FROM products")->fetchColumn();
-$low_stock = $db->query("SELECT COUNT(*) FROM products WHERE stock_quantity <= reorder_level AND stock_quantity > 0")->fetchColumn();
-$out_of_stock = $db->query("SELECT COUNT(*) FROM products WHERE stock_quantity = 0")->fetchColumn();
+// Get dashboard stats
+$stats = $helper->getDashboardStats();
+$total_products = $stats['total_products'];
 
-// Get today sales
-try {
-    $today_sales = $db->query("SELECT COALESCE(SUM(total_price), 0) FROM sales WHERE DATE(created_at) = CURDATE()")->fetchColumn();
-} catch (Exception $e) {
-    $today_sales = 0;
-}
+// Count low stock and out of stock
+$products = $helper->getAllProducts();
+$low_stock = 0;
+$out_of_stock = 0;
 
-// Get recent sales - just get them
-$recent_sales = [];
-try {
-    $sales_stmt = $db->prepare("
-        SELECT s.id, s.created_at, s.customer_name, s.product_id, s.quantity, 
-               s.total_price as total_amount,
-               p.product_name, sup.name as supplier_name
-        FROM sales s
-        LEFT JOIN products p ON s.product_id = p.id
-        LEFT JOIN suppliers sup ON p.supplier_id = sup.id
-        ORDER BY s.created_at DESC 
-        LIMIT 10
-    ");
-    $sales_stmt->execute();
-    $sales_data = $sales_stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    foreach ($sales_data as $sale) {
-        // Check if multi-item sale
-        $items_stmt = $db->prepare("
-            SELECT COUNT(*) as item_count, SUM(si.quantity) as total_qty
-            FROM sale_items si 
-            WHERE si.sale_id = ?
-        ");
-        $items_stmt->execute([$sale['id']]);
-        $item_info = $items_stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($item_info['item_count'] > 0) {
-            // Multi-item sale
-            if ($item_info['item_count'] > 1) {
-                $product_display = "Multi-item Sale ({$item_info['item_count']} items)";
-                $quantity = $item_info['total_qty'];
-            } else {
-                // Single item
-                $single_item_stmt = $db->prepare("
-                    SELECT p.product_name, sup.name as supplier_name, si.quantity
-                    FROM sale_items si
-                    LEFT JOIN products p ON si.product_id = p.id
-                    LEFT JOIN suppliers sup ON p.supplier_id = sup.id
-                    WHERE si.sale_id = ?
-                    LIMIT 1
-                ");
-                $single_item_stmt->execute([$sale['id']]);
-                $single_item = $single_item_stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($single_item) {
-                    $product_display = ($single_item['product_name'] ?? 'Unknown') . ' (' . ($single_item['supplier_name'] ?? 'No Brand') . ')';
-                    $quantity = $single_item['quantity'];
-                } else {
-                    $product_display = "Sale #{$sale['id']}";
-                    $quantity = 0;
-                }
-            }
-        } else {
-            // Single item sale (old way)
-            if ($sale['product_name']) {
-                $product_display = $sale['product_name'] . ' (' . ($sale['supplier_name'] ?? 'No Brand') . ')';
-                $quantity = $sale['quantity'] ?? 0;
-            } else {
-                $product_display = "Sale #{$sale['id']}";
-                $quantity = $sale['quantity'] ?? 0;
-            }
-        }
-        
-        $recent_sales[] = [
-            'id' => $sale['id'],
-            'created_at' => $sale['created_at'],
-            'product_display' => $product_display,
-            'total_quantity' => $quantity,
-            'total_amount' => $sale['total_amount']
-        ];
-        
-        if (count($recent_sales) >= 5) break;
+foreach ($products as $product) {
+    if ($product['stock_quantity'] == 0) {
+        $out_of_stock++;
+    } elseif ($product['stock_quantity'] <= $product['reorder_level']) {
+        $low_stock++;
     }
-    
-} catch (Exception $e) {
-    $recent_sales = [];
 }
+
+// Get today sales (set to 0 for now - sales table needs migration)
+$today_sales = 0;
+
+// Get recent sales - empty for now until we migrate sales properly
+$recent_sales = [];
 
 // Get low stock products
-$low_stock_products = $db->query("SELECT * FROM products 
-    WHERE stock_quantity <= reorder_level 
-    ORDER BY stock_quantity ASC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+$low_stock_products = $helper->getLowStockProducts();
+$low_stock_products = array_slice($low_stock_products, 0, 5); // Limit to 5
 
-// Get weekly sales for chart
-try {
-    $weekly_sales = $db->query("SELECT DATE(created_at) as date, SUM(total_price) as total 
-        FROM sales 
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
-        GROUP BY DATE(created_at) 
-        ORDER BY date")->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    $weekly_sales = [];
-}
+// Get weekly sales for chart (empty for now - sales need proper migration)
+$weekly_sales = [];
 
 // Get categories for pie chart
-$categories = $db->query("SELECT c.name, COUNT(p.id) as count, SUM(p.price * p.stock_quantity) as value
-    FROM categories c 
-    LEFT JOIN products p ON c.id = p.category_id 
-    GROUP BY c.id 
-    ORDER BY count DESC")->fetchAll(PDO::FETCH_ASSOC);
+$categories_data = $helper->getAllCategories();
+$products_data = $helper->getAllProducts();
 
-// Monthly sales (last 6 months)
-try {
-    // Make 6 month template
-    $months_template = [];
-    for ($i = 5; $i >= 0; $i--) {
-        $month_key = date('Y-m', strtotime("-$i months"));
-        $month_display = date('M Y', strtotime("-$i months"));
-        $months_template[$month_key] = [
-            'month' => $month_display,
-            'total' => 0
-        ];
-    }
+$categories = [];
+foreach ($categories_data as $cat) {
+    $count = 0;
+    $value = 0;
     
-    // Get monthly data
-    $monthly_sales_raw = $db->query("SELECT DATE_FORMAT(created_at, '%Y-%m') as month, SUM(total_price) as total 
-        FROM sales 
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-        GROUP BY DATE_FORMAT(created_at, '%Y-%m') 
-        ORDER BY month")->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Fill template with data
-    foreach ($monthly_sales_raw as $sale) {
-        if (isset($months_template[$sale['month']])) {
-            $months_template[$sale['month']]['total'] = (float)$sale['total'];
+    foreach ($products_data as $product) {
+        if ($product['category_id'] == $cat['id']) {
+            $count++;
+            $value += $product['price'] * $product['stock_quantity'];
         }
     }
     
-    $monthly_sales = array_values($months_template);
-    
-} catch (Exception $e) {
-    // Empty template if error
-    $monthly_sales = [];
-    for ($i = 5; $i >= 0; $i--) {
-        $monthly_sales[] = [
-            'month' => date('M Y', strtotime("-$i months")),
-            'total' => 0
-        ];
-    }
+    $categories[] = [
+        'name' => $cat['name'],
+        'count' => $count,
+        'value' => $value
+    ];
+}
+
+// Sort by count
+usort($categories, function($a, $b) {
+    return $b['count'] - $a['count'];
+});
+
+// Monthly sales (empty for now - sales need proper migration)
+$monthly_sales = [];
+for ($i = 5; $i >= 0; $i--) {
+    $monthly_sales[] = [
+        'month' => date('M Y', strtotime("-$i months")),
+        'total' => 0
+    ];
 }
 
 // Prepare chart data

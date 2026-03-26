@@ -50,7 +50,7 @@
             </div>
             
             <span class="me-3 text-muted">
-                <i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($_SESSION['username']); ?>
+                <i class="bi bi-person-circle"></i> <?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Guest'; ?>
             </span>
             <a href="logout.php" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-box-arrow-right"></i> Logout

@@ -6,58 +6,7 @@ requireLogin();
 $database = new Database();
 $db = $database->getConnection();
 
-// Check if required tables exist
-try {
-    // Check for inventory_logs table
-    $db->query("SHOW TABLES LIKE 'inventory_logs'")->fetch();
-    
-    // Create inventory_logs table if it doesn't exist
-    $db->exec("CREATE TABLE IF NOT EXISTS inventory_logs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        product_id INT NOT NULL,
-        action ENUM('stock_in', 'stock_out') NOT NULL,
-        quantity INT NOT NULL,
-        user_id INT NULL,
-        notes TEXT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_product (product_id),
-        INDEX idx_created (created_at)
-    )");
-    
-    // Create sales table if it doesn't exist
-    $db->exec("CREATE TABLE IF NOT EXISTS sales (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        product_id INT NULL,
-        quantity INT NULL,
-        total_price DECIMAL(10,2) NULL,
-        customer_name VARCHAR(255) NULL,
-        customer_email VARCHAR(255) NULL,
-        customer_phone VARCHAR(20) NULL,
-        payment_method ENUM('cash', 'card', 'digital_wallet', 'bank_transfer') DEFAULT 'cash',
-        total_amount DECIMAL(10,2) NULL,
-        notes TEXT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_product (product_id),
-        INDEX idx_created (created_at),
-        INDEX idx_customer (customer_name)
-    )");
-    
-    // Create sale_items table for multi-item sales
-    $db->exec("CREATE TABLE IF NOT EXISTS sale_items (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        sale_id INT NOT NULL,
-        product_id INT NOT NULL,
-        quantity INT NOT NULL,
-        unit_price DECIMAL(10,2) NOT NULL,
-        total_price DECIMAL(10,2) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_sale (sale_id),
-        INDEX idx_product (product_id)
-    )");
-    
-} catch (Exception $e) {
-    error_log("Inventory tables creation error: " . $e->getMessage());
-}
+// Tables already exist - no need to create them
 // Handle stock operations
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
