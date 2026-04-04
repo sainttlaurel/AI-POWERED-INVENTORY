@@ -1,21 +1,26 @@
 <?php
-require_once 'config/supabase_helper.php';
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+require_once 'config/database.php';
 require_once 'config/session.php';
 
 requireLogin();
 
-$helper = new SupabaseHelper();
+$db = new Database();
+$conn = $db->getConnection();
 
 // Get dashboard stats
-$stats = $helper->getDashboardStats();
-$total_products = $stats['total_products'];
+$total_products = $conn->query("SELECT COUNT(*) FROM products")->fetchColumn();
 
 // Count low stock and out of stock
-$products = $helper->getAllProducts();
 $low_stock = 0;
 $out_of_stock = 0;
+$products_result = $conn->query("SELECT stock_quantity, reorder_level FROM products");
+$all_products = $products_result->fetchAll(PDO::FETCH_ASSOC);
 
-foreach ($products as $product) {
+foreach ($all_products as $product) {
     if ($product['stock_quantity'] == 0) {
         $out_of_stock++;
     } elseif ($product['stock_quantity'] <= $product['reorder_level']) {
@@ -23,48 +28,23 @@ foreach ($products as $product) {
     }
 }
 
-// Get today sales (set to 0 for now - sales table needs migration)
+// Today's sales
 $today_sales = 0;
-
-// Get recent sales - empty for now until we migrate sales properly
 $recent_sales = [];
 
-// Get low stock products
-$low_stock_products = $helper->getLowStockProducts();
-$low_stock_products = array_slice($low_stock_products, 0, 5); // Limit to 5
+// Low stock products (limit 5)
+$low_stock_products = $conn->query("
+    SELECT * FROM products 
+    WHERE stock_quantity <= reorder_level 
+    ORDER BY stock_quantity ASC 
+    LIMIT 5
+")->fetchAll(PDO::FETCH_ASSOC);
 
-// Get weekly sales for chart (empty for now - sales need proper migration)
+// Weekly sales (empty until sales table is ready)
 $weekly_sales = [];
+$salesData = [];
 
-// Get categories for pie chart
-$categories_data = $helper->getAllCategories();
-$products_data = $helper->getAllProducts();
-
-$categories = [];
-foreach ($categories_data as $cat) {
-    $count = 0;
-    $value = 0;
-    
-    foreach ($products_data as $product) {
-        if ($product['category_id'] == $cat['id']) {
-            $count++;
-            $value += $product['price'] * $product['stock_quantity'];
-        }
-    }
-    
-    $categories[] = [
-        'name' => $cat['name'],
-        'count' => $count,
-        'value' => $value
-    ];
-}
-
-// Sort by count
-usort($categories, function($a, $b) {
-    return $b['count'] - $a['count'];
-});
-
-// Monthly sales (empty for now - sales need proper migration)
+// Monthly sales (last 6 months)
 $monthly_sales = [];
 for ($i = 5; $i >= 0; $i--) {
     $monthly_sales[] = [
@@ -72,25 +52,32 @@ for ($i = 5; $i >= 0; $i--) {
         'total' => 0
     ];
 }
+$monthlyData = $monthly_sales;
 
-// Prepare chart data
-$salesData = [];
-$monthlyData = [];
+// Categories with product counts
+$categories_data = $conn->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+$products_data = $conn->query("SELECT category_id, price, stock_quantity FROM products")->fetchAll(PDO::FETCH_ASSOC);
 
-// Sales chart data
-foreach ($weekly_sales as $sale) {
-    $salesData[] = [
-        'date' => $sale['date'],
-        'total' => (float)$sale['total']
+$categories = [];
+foreach ($categories_data as $cat) {
+    $count = 0;
+    $value = 0;
+    foreach ($products_data as $product) {
+        if ($product['category_id'] == $cat['id']) {
+            $count++;
+            $value += $product['price'] * $product['stock_quantity'];
+        }
+    }
+    $categories[] = [
+        'name'  => $cat['name'],
+        'count' => $count,
+        'value' => $value
     ];
 }
 
-foreach ($monthly_sales as $month) {
-    $monthlyData[] = [
-        'month' => $month['month'],
-        'total' => (float)$month['total']
-    ];
-}
+usort($categories, function($a, $b) {
+    return $b['count'] - $a['count'];
+});
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -102,96 +89,47 @@ foreach ($monthly_sales as $month) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* Fix table alignment issues */
-        .table {
-            table-layout: auto !important;
-        }
-        
-        .table th,
-        .table td {
+        .table { table-layout: auto !important; }
+        .table th, .table td {
             animation: none !important;
             transform: none !important;
             transition: none !important;
         }
-        
-        .table tbody tr {
-            animation: none !important;
-            animation-delay: 0s !important;
-        }
-        
-        .table tbody tr::before {
-            display: none !important;
-        }
-        
-        /* Ensure proper column structure */
-        .table-responsive {
-            overflow-x: auto;
-        }
-        
-        /* Reset any conflicting styles */
-        .table .badge {
-            display: inline-block;
-            white-space: nowrap;
-        }
-        
-        /* Dashboard specific styling */
+        .table tbody tr { animation: none !important; animation-delay: 0s !important; }
+        .table tbody tr::before { display: none !important; }
+        .table-responsive { overflow-x: auto; }
+        .table .badge { display: inline-block; white-space: nowrap; }
         .dashboard-card {
             transition: all 0.3s ease;
             border: none;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        
         .dashboard-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
         }
-        
-        /* Chart containers */
-        .chart-container {
-            position: relative;
-            height: 200px;
-        }
-        
-        /* Stats cards hover effects */
+        .chart-container { position: relative; height: 200px; }
         .card.text-white:hover {
             transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
         }
-        
-        /* Table hover effects */
         .table tbody tr:hover {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%) !important;
+            background: linear-gradient(135deg, rgba(59,130,246,0.05) 0%, rgba(37,99,235,0.05) 100%) !important;
             transform: translateX(3px);
             transition: all 0.3s ease;
         }
-        
-        /* Badge styling */
-        .badge {
-            font-size: 0.75em;
-            padding: 0.35em 0.65em;
-        }
-        
-        /* Empty state styling */
-        .empty-state {
-            padding: 2rem;
-            text-align: center;
-            color: #6c757d;
-        }
-        
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
+        .badge { font-size: 0.75em; padding: 0.35em 0.65em; }
+        .empty-state { padding: 2rem; text-align: center; color: #6c757d; }
+        .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
     </style>
 </head>
 <body>
     <?php include 'includes/navbar.php'; ?>
-    
+
     <div class="container-fluid">
         <div class="sidebar-overlay"></div>
         <?php include 'includes/sidebar.php'; ?>
-        
+
         <main>
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-speedometer2"></i> Dashboard</h1>
@@ -219,9 +157,7 @@ foreach ($monthly_sales as $month) {
                                     <h2 class="mb-0 mt-2"><?php echo $total_products; ?></h2>
                                     <small class="opacity-75">In inventory</small>
                                 </div>
-                                <div class="fs-1 opacity-50">
-                                    <i class="bi bi-box-seam"></i>
-                                </div>
+                                <div class="fs-1 opacity-50"><i class="bi bi-box-seam"></i></div>
                             </div>
                         </div>
                     </div>
@@ -235,9 +171,7 @@ foreach ($monthly_sales as $month) {
                                     <h2 class="mb-0 mt-2"><?php echo $low_stock; ?></h2>
                                     <small class="opacity-75">Need reorder</small>
                                 </div>
-                                <div class="fs-1 opacity-50">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                </div>
+                                <div class="fs-1 opacity-50"><i class="bi bi-exclamation-triangle"></i></div>
                             </div>
                         </div>
                     </div>
@@ -251,9 +185,7 @@ foreach ($monthly_sales as $month) {
                                     <h2 class="mb-0 mt-2"><?php echo $out_of_stock; ?></h2>
                                     <small class="opacity-75">Critical items</small>
                                 </div>
-                                <div class="fs-1 opacity-50">
-                                    <i class="bi bi-x-circle"></i>
-                                </div>
+                                <div class="fs-1 opacity-50"><i class="bi bi-x-circle"></i></div>
                             </div>
                         </div>
                     </div>
@@ -267,9 +199,7 @@ foreach ($monthly_sales as $month) {
                                     <h2 class="mb-0 mt-2">₱<?php echo number_format($today_sales, 2); ?></h2>
                                     <small class="opacity-75"><?php echo date('M d, Y'); ?></small>
                                 </div>
-                                <div class="fs-1 opacity-50">
-                                    <i class="bi bi-currency-dollar"></i>
-                                </div>
+                                <div class="fs-1 opacity-50"><i class="bi bi-currency-dollar"></i></div>
                             </div>
                         </div>
                     </div>
@@ -301,7 +231,7 @@ foreach ($monthly_sales as $month) {
 
             <div class="row mb-4">
                 <div class="col-md-6">
-                        <div class="card dashboard-card">
+                    <div class="card dashboard-card">
                         <div class="card-header">
                             <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Sales</h5>
                         </div>
@@ -314,7 +244,7 @@ foreach ($monthly_sales as $month) {
                                 </div>
                             <?php else: ?>
                                 <div class="table-responsive">
-                                    <table class="table table-sm table-hover" id="recentSalesTable">
+                                    <table class="table table-sm table-hover">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Product</th>
@@ -339,6 +269,7 @@ foreach ($monthly_sales as $month) {
                         </div>
                     </div>
                 </div>
+
                 <div class="col-md-6">
                     <div class="card mb-3 dashboard-card">
                         <div class="card-header">
@@ -352,7 +283,7 @@ foreach ($monthly_sales as $month) {
                                 </div>
                             <?php else: ?>
                                 <div class="table-responsive">
-                                    <table class="table table-sm table-hover" id="lowStockTable">
+                                    <table class="table table-sm table-hover">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Product</th>
@@ -382,7 +313,7 @@ foreach ($monthly_sales as $month) {
                             <?php endif; ?>
                         </div>
                     </div>
-                    
+
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Monthly Sales (Last 6 Months)</h5>
@@ -403,14 +334,13 @@ foreach ($monthly_sales as $month) {
     <script src="js/chatbot.js"></script>
 
     <script>
-        // Chart.js default configuration
         Chart.defaults.font.family = 'Inter, system-ui, -apple-system, sans-serif';
         Chart.defaults.color = '#6c757d';
         Chart.defaults.borderColor = '#dee2e6';
 
         // Sales Chart
         const salesCtx = document.getElementById('salesChart').getContext('2d');
-        const salesChart = new Chart(salesCtx, {
+        new Chart(salesCtx, {
             type: 'line',
             data: {
                 labels: <?php echo json_encode(array_column($salesData, 'date')); ?>,
@@ -429,53 +359,34 @@ foreach ($monthly_sales as $month) {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return '₱' + value.toLocaleString();
-                            }
-                        }
+                        ticks: { callback: v => '₱' + v.toLocaleString() }
                     }
                 },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
+                plugins: { legend: { display: false } }
             }
         });
 
         // Category Chart
         const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        const categoryChart = new Chart(categoryCtx, {
+        new Chart(categoryCtx, {
             type: 'doughnut',
             data: {
                 labels: <?php echo json_encode(array_column($categories, 'name')); ?>,
                 datasets: [{
                     data: <?php echo json_encode(array_column($categories, 'count')); ?>,
-                    backgroundColor: [
-                        '#FF6384',
-                        '#36A2EB',
-                        '#FFCE56',
-                        '#4BC0C0',
-                        '#9966FF',
-                        '#FF9F40'
-                    ]
+                    backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40']
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
+                plugins: { legend: { position: 'bottom' } }
             }
         });
 
         // Monthly Chart
         const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-        const monthlyChart = new Chart(monthlyCtx, {
+        new Chart(monthlyCtx, {
             type: 'bar',
             data: {
                 labels: <?php echo json_encode(array_column($monthlyData, 'month')); ?>,
@@ -493,58 +404,27 @@ foreach ($monthly_sales as $month) {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    },
+                    x: { grid: { display: false } },
                     y: {
                         beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return '₱' + value.toLocaleString();
-                            }
-                        }
+                        ticks: { callback: v => '₱' + v.toLocaleString() }
                     }
                 },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
+                plugins: { legend: { display: false } }
             }
         });
-        
-        // Export dashboard data
+
         function exportDashboard() {
-            const data = {
-                total_products: <?php echo $total_products; ?>,
-                low_stock: <?php echo $low_stock; ?>,
-                out_of_stock: <?php echo $out_of_stock; ?>,
-                today_sales: <?php echo $today_sales; ?>,
-                recent_sales: <?php echo json_encode($recent_sales); ?>,
-                low_stock_products: <?php echo json_encode($low_stock_products); ?>
-            };
-            
             const csv = [
                 'Dashboard Summary - ' + new Date().toLocaleDateString(),
                 '',
                 'Metrics',
-                'Total Products,' + data.total_products,
-                'Low Stock Items,' + data.low_stock,
-                'Out of Stock Items,' + data.out_of_stock,
-                'Today\'s Sales,₱' + data.today_sales,
-                '',
-                'Recent Sales',
-                'Product,Quantity,Total,Date'
+                'Total Products,<?php echo $total_products; ?>',
+                'Low Stock Items,<?php echo $low_stock; ?>',
+                'Out of Stock Items,<?php echo $out_of_stock; ?>',
+                "Today's Sales,₱<?php echo $today_sales; ?>"
             ];
-            
-            data.recent_sales.forEach(sale => {
-                csv.push(`"${sale.product_display}",${sale.total_quantity},₱${sale.total_amount},"${sale.created_at}"`);
-            });
-            
-            const csvContent = csv.join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
