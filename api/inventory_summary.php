@@ -53,57 +53,71 @@ try {
     switch ($type) {
         case 'sales':
             // Sales Summary
-            $query = "SELECT s.*, p.product_name, p.barcode, c.name as category_name, sup.name as supplier_name
-                     FROM sales s 
-                     JOIN products p ON s.product_id = p.id 
-                     LEFT JOIN categories c ON p.category_id = c.id 
-                     LEFT JOIN suppliers sup ON p.supplier_id = sup.id 
-                     WHERE DATE(s.created_at) BETWEEN ? AND ?
-                     ORDER BY s.created_at DESC";
+            $query = "SELECT i.* 
+                     FROM invoices i
+                     WHERE i.payment_status = 'paid' AND DATE(i.created_at) BETWEEN ? AND ?
+                     ORDER BY i.created_at DESC";
             
             $stmt = $db->prepare($query);
             $stmt->execute([$start_date, $end_date]);
-            $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             // Calculate totals
-            $total_sales = count($sales);
-            $total_revenue = array_sum(array_column($sales, 'total_price'));
-            $total_items = array_sum(array_column($sales, 'quantity'));
+            $total_sales = count($invoices);
+            $total_revenue = array_sum(array_column($invoices, 'total_amount'));
             
             // Group by payment method
             $payment_methods = [];
-            foreach ($sales as $sale) {
-                $method = $sale['payment_method'] ?? 'cash';
+            foreach ($invoices as $inv) {
+                $method = $inv['payment_method'] ?? 'cash';
                 if (!isset($payment_methods[$method])) {
                     $payment_methods[$method] = ['count' => 0, 'total' => 0];
                 }
                 $payment_methods[$method]['count']++;
-                $payment_methods[$method]['total'] += $sale['total_price'];
+                $payment_methods[$method]['total'] += $inv['total_amount'];
             }
             
-            // Top selling products
+            // Get invoice items for item-level metrics
+            $total_items = 0;
             $product_sales = [];
-            foreach ($sales as $sale) {
-                $product_id = $sale['product_id'];
-                if (!isset($product_sales[$product_id])) {
-                    $product_sales[$product_id] = [
-                        'name' => $sale['product_name'],
-                        'category' => $sale['category_name'],
-                        'quantity' => 0,
-                        'revenue' => 0
-                    ];
+            
+            if ($total_sales > 0) {
+                $invoice_ids = array_column($invoices, 'id');
+                $placeholders = str_repeat('?,', count($invoice_ids) - 1) . '?';
+                
+                $items_query = "SELECT ii.*, p.product_name, c.name as category_name
+                                FROM invoice_items ii
+                                JOIN products p ON ii.product_id = p.id
+                                LEFT JOIN categories c ON p.category_id = c.id
+                                WHERE ii.invoice_id IN ($placeholders)";
+                
+                $items_stmt = $db->prepare($items_query);
+                $items_stmt->execute($invoice_ids);
+                $invoice_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                foreach ($invoice_items as $item) {
+                    $total_items += $item['quantity'];
+                    $product_id = $item['product_id'];
+                    
+                    if (!isset($product_sales[$product_id])) {
+                        $product_sales[$product_id] = [
+                            'name' => $item['product_name'] ?? 'Unknown',
+                            'category' => $item['category_name'] ?? 'Uncategorized',
+                            'quantity' => 0,
+                            'revenue' => 0
+                        ];
+                    }
+                    $product_sales[$product_id]['quantity'] += $item['quantity'];
+                    $product_sales[$product_id]['revenue'] += $item['subtotal'];
                 }
-                $product_sales[$product_id]['quantity'] += $sale['quantity'];
-                $product_sales[$product_id]['revenue'] += $sale['total_price'];
             }
             
-            // Sort by quantity sold
             uasort($product_sales, function($a, $b) {
                 return $b['quantity'] - $a['quantity'];
             });
             
             $response['data'] = [
-                'transactions' => $sales,
+                'transactions' => $invoices,
                 'summary' => [
                     'total_sales' => $total_sales,
                     'total_revenue' => $total_revenue,
@@ -189,13 +203,14 @@ try {
         case 'daily':
             // Daily Overview
             $query = "SELECT 
-                        DATE(created_at) as date,
-                        COUNT(*) as sales_count,
-                        SUM(total_price) as revenue,
-                        SUM(quantity) as items_sold
-                      FROM sales 
-                      WHERE DATE(created_at) BETWEEN ? AND ?
-                      GROUP BY DATE(created_at)
+                        DATE(i.created_at) as date,
+                        COUNT(DISTINCT i.id) as sales_count,
+                        SUM(ii.subtotal) as revenue,
+                        SUM(ii.quantity) as items_sold
+                      FROM invoices i
+                      JOIN invoice_items ii ON i.id = ii.invoice_id
+                      WHERE i.payment_status = 'paid' AND DATE(i.created_at) BETWEEN ? AND ?
+                      GROUP BY DATE(i.created_at)
                       ORDER BY date DESC";
             
             $stmt = $db->prepare($query);
@@ -227,15 +242,16 @@ try {
         case 'weekly':
             // Weekly Overview
             $query = "SELECT 
-                        YEARWEEK(created_at) as week,
-                        MIN(DATE(created_at)) as week_start,
-                        MAX(DATE(created_at)) as week_end,
-                        COUNT(*) as sales_count,
-                        SUM(total_price) as revenue,
-                        SUM(quantity) as items_sold
-                      FROM sales 
-                      WHERE DATE(created_at) BETWEEN ? AND ?
-                      GROUP BY YEARWEEK(created_at)
+                        YEARWEEK(i.created_at) as week,
+                        MIN(DATE(i.created_at)) as week_start,
+                        MAX(DATE(i.created_at)) as week_end,
+                        COUNT(DISTINCT i.id) as sales_count,
+                        SUM(ii.subtotal) as revenue,
+                        SUM(ii.quantity) as items_sold
+                      FROM invoices i
+                      JOIN invoice_items ii ON i.id = ii.invoice_id
+                      WHERE i.payment_status = 'paid' AND DATE(i.created_at) BETWEEN ? AND ?
+                      GROUP BY YEARWEEK(i.created_at)
                       ORDER BY week DESC";
             
             $stmt = $db->prepare($query);
@@ -251,13 +267,14 @@ try {
         case 'monthly':
             // Monthly Overview
             $query = "SELECT 
-                        DATE_FORMAT(created_at, '%Y-%m') as month,
-                        COUNT(*) as sales_count,
-                        SUM(total_price) as revenue,
-                        SUM(quantity) as items_sold
-                      FROM sales 
-                      WHERE DATE(created_at) BETWEEN ? AND ?
-                      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+                        DATE_FORMAT(i.created_at, '%Y-%m') as month,
+                        COUNT(DISTINCT i.id) as sales_count,
+                        SUM(ii.subtotal) as revenue,
+                        SUM(ii.quantity) as items_sold
+                      FROM invoices i
+                      JOIN invoice_items ii ON i.id = ii.invoice_id
+                      WHERE i.payment_status = 'paid' AND DATE(i.created_at) BETWEEN ? AND ?
+                      GROUP BY DATE_FORMAT(i.created_at, '%Y-%m')
                       ORDER BY month DESC";
             
             $stmt = $db->prepare($query);

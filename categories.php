@@ -3,6 +3,12 @@ require_once 'config/database.php';
 require_once 'config/session.php';
 requireLogin();
 
+// Enforce Role-Based Access Control
+if (!isAdmin()) {
+    header("Location: dashboard.php");
+    exit();
+}
+
 $database = new Database();
 $db = $database->getConnection();
 

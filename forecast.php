@@ -15,8 +15,12 @@ try {
         require_once 'ai/forecasting.php';
         if (class_exists('AdvancedForecasting')) {
             $forecasting = new AdvancedForecasting($db);
-            // Only update forecasts if requested (to avoid performance issues)
-            if (isset($_GET['refresh'])) {
+            
+            // Auto-update if table is empty or manually requested
+            $has_data = false;
+            try { $has_data = $db->query("SELECT COUNT(*) FROM forecast_data_advanced")->fetchColumn() > 0; } catch (Exception $e) {}
+            
+            if (!$has_data || isset($_GET['refresh'])) {
                 $forecasting->updateAllForecasts();
             }
         }
@@ -32,11 +36,11 @@ try {
     // Get top products with improved query for multi-item sales
     $top_products_query = "
         SELECT p.product_name, 
-               COALESCE(SUM(s.quantity), 0) + COALESCE(SUM(si.quantity), 0) as total_sold,
-               COALESCE(SUM(s.total_price), 0) + COALESCE(SUM(si.total_price), 0) as revenue
+               COALESCE(SUM(ii.quantity), 0) as total_sold,
+               COALESCE(SUM(ii.subtotal), 0) as revenue
         FROM products p
-        LEFT JOIN sales s ON p.id = s.product_id
-        LEFT JOIN sale_items si ON p.id = si.product_id
+        LEFT JOIN invoice_items ii ON p.id = ii.product_id
+        LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.payment_status = 'paid'
         GROUP BY p.id, p.product_name
         HAVING total_sold > 0
         ORDER BY total_sold DESC 
@@ -48,31 +52,35 @@ try {
     // Continue with empty arrays if there are errors
 }
 
-// If no forecast data, create sample data for demonstration
-if (empty($forecasts)) {
-    $sample_products = $db->query("SELECT id, product_name, stock_quantity, price FROM products LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($sample_products as $product) {
-        $forecasts[] = [
-            'product_name' => $product['product_name'],
-            'stock_quantity' => $product['stock_quantity'],
-            'avg_daily_sales' => rand(1, 5),
-            'forecast_weekly' => rand(5, 35),
-            'forecast_monthly' => rand(20, 140),
-            'predicted_depletion_days' => rand(5, 30),
-            'reorder_suggestion' => rand(10, 50)
-        ];
-    }
-}
+// Removed the fallback mock data generator so only true AI values render
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Forecast Analytics</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="css/style.css">
+<?php
+$page_title = 'AI Forecast Analytics — InvenAI';
+$extra_head = '
+<style>
+.forecast-stats {
+  background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(6,182,212,0.04) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.stat-item { text-align: center; padding: 0.5rem; }
+.stat-number { font-size: 1.75rem; font-weight: 700; color: var(--accent-primary); }
+.stat-number.text-danger  { color: var(--accent-rose) !important; }
+.stat-number.text-warning { color: var(--accent-amber) !important; }
+.stat-number.text-success { color: var(--accent-emerald) !important; }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.forecast-card { transition: all 0.25s; }
+.forecast-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.chart-container { position: relative; height: 300px; }
+.badge-depletion { font-size: 0.8rem; padding: 0.4em 0.8em; }
+</style>';
+include 'includes/head.php';
+?>
     <style>
         /* Fix table alignment issues */
         .table {
@@ -453,7 +461,6 @@ if (empty($forecasts)) {
             });
         });
     </script>
-    <script src="js/chatbot.js"></script>
     <script src="js/mobile.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

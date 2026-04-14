@@ -1,7 +1,8 @@
-<nav class="sidebar">
-    <div class="position-sticky pt-3">
+<nav class="sidebar" id="mainSidebar">
+    <div class="position-sticky">
+
         <!-- Main Navigation -->
-        <div class="sidebar-section">
+        <div class="sidebar-section" style="padding-top:1rem;">
             <ul class="nav flex-column">
                 <li class="nav-item">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">
@@ -15,22 +16,38 @@
                         <span>Products</span>
                     </a>
                 </li>
+                <?php if (isAdmin()): ?>
                 <li class="nav-item">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'categories.php' ? 'active' : ''; ?>" href="categories.php">
                         <i class="bi bi-tags"></i>
                         <span>Categories</span>
                     </a>
                 </li>
+                <?php endif; ?>
+                <?php if (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager')): ?>
                 <li class="nav-item">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'inventory.php' ? 'active' : ''; ?>" href="inventory.php">
                         <i class="bi bi-clipboard-data"></i>
                         <span>Inventory</span>
                     </a>
                 </li>
+                <?php endif; ?>
                 <li class="nav-item">
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'invoices.php' || basename($_SERVER['PHP_SELF']) == 'create_invoice.php' ? 'active' : ''; ?>" href="invoices.php">
+                    <a class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'invoices.php' || basename($_SERVER['PHP_SELF']) == 'create_invoice.php') ? 'active' : ''; ?>" href="invoices.php">
                         <i class="bi bi-receipt"></i>
                         <span>Invoices</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'reservations.php' ? 'active' : ''; ?>" href="reservations.php">
+                        <i class="bi bi-calendar-check"></i>
+                        <span>Reservations</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'qr_codes.php' ? 'active' : ''; ?>" href="qr_codes.php">
+                        <i class="bi bi-qr-code"></i>
+                        <span>QR Codes</span>
                     </a>
                 </li>
             </ul>
@@ -48,7 +65,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active' : ''; ?>" href="reports.php">
-                        <i class="bi bi-bar-chart"></i>
+                        <i class="bi bi-bar-chart-line"></i>
                         <span>Reports</span>
                     </a>
                 </li>
@@ -76,17 +93,24 @@
             </ul>
         </div>
 
-        <!-- User Info Section -->
+        <!-- User Info -->
         <div class="sidebar-footer">
-            <div class="user-info">
+            <div class="user-info" title="Logged in as <?php echo htmlspecialchars($_SESSION['username'] ?? 'User'); ?>">
                 <div class="user-avatar">
-                    <i class="bi bi-person-circle"></i>
+                    <?php echo strtoupper(substr($_SESSION['username'] ?? 'U', 0, 1)); ?>
                 </div>
                 <div class="user-details">
                     <div class="user-name"><?php echo htmlspecialchars($_SESSION['username'] ?? 'User'); ?></div>
-                    <div class="user-role"><?php echo isAdmin() ? 'Administrator' : 'User'; ?></div>
+                    <div class="user-role"><?php echo ucfirst($_SESSION['role'] ?? 'staff'); ?></div>
                 </div>
+                <a href="logout.php" class="ms-auto" title="Logout" style="color:var(--text-muted);font-size:1.1rem;transition:color 0.2s;" onmouseover="this.style.color='var(--accent-rose)'" onmouseout="this.style.color='var(--text-muted)'">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
             </div>
         </div>
+
     </div>
 </nav>
+
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>

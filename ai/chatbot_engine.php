@@ -324,7 +324,7 @@ if (strpos($user_question, 'low stock') !== false || strpos($user_question, 'nee
     }
 }
 elseif (strpos($user_question, 'top selling') !== false || strpos($user_question, 'best seller') !== false) {
-    $stmt = $db->query("SELECT p.product_name, SUM(s.quantity) as total, SUM(s.total_price) as revenue FROM sales s JOIN products p ON s.product_id = p.id GROUP BY s.product_id ORDER BY total DESC LIMIT 3");
+    $stmt = $db->query("SELECT p.product_name, SUM(ii.quantity) as total, SUM(ii.subtotal) as revenue FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id JOIN products p ON ii.product_id = p.id WHERE i.payment_status = 'paid' GROUP BY ii.product_id ORDER BY total DESC LIMIT 3");
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     if (count($products) > 0) {
@@ -370,7 +370,7 @@ elseif (strpos($user_question, 'out of stock') !== false) {
     }
 }
 elseif (strpos($user_question, 'recent sales') !== false || strpos($user_question, 'latest sales') !== false) {
-    $stmt = $db->query("SELECT p.product_name, s.quantity, s.total_price, s.created_at FROM sales s JOIN products p ON s.product_id = p.id ORDER BY s.created_at DESC LIMIT 5");
+    $stmt = $db->query("SELECT p.product_name, ii.quantity, ii.subtotal as total_price, i.created_at FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id JOIN products p ON ii.product_id = p.id WHERE i.payment_status = 'paid' ORDER BY i.created_at DESC LIMIT 5");
     $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     if (count($sales) > 0) {
@@ -410,7 +410,7 @@ elseif (strpos($user_question, 'suppliers') !== false || strpos($user_question, 
     }
 }
 elseif (strpos($user_question, 'today sales') !== false || strpos($user_question, 'daily sales') !== false) {
-    $stmt = $db->query("SELECT SUM(total_price) as total, COUNT(*) as transactions FROM sales WHERE DATE(created_at) = CURDATE()");
+    $stmt = $db->query("SELECT SUM(total_amount) as total, COUNT(DISTINCT id) as transactions FROM invoices WHERE payment_status = 'paid' AND DATE(created_at) = CURDATE()");
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     
     $total = $result['total'] ?? 0;

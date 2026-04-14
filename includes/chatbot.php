@@ -11,10 +11,9 @@
     <div class="chatbot-container" id="chatbot-container">
         <!-- Header -->
         <div class="chatbot-header-modern">
-            <div class="header-content">
+            <div style="display:flex;align-items:center;flex:1;min-width:0;">
                 <div class="ai-avatar">
-                    <div class="avatar-glow"></div>
-                    <i class="bi bi-cpu"></i>
+                    <i class="bi bi-cpu-fill" style="color:white;font-size:17px;"></i>
                 </div>
                 <div class="ai-info">
                     <h4>Inventory Assistant</h4>
@@ -29,7 +28,7 @@
                     <i class="bi bi-arrow-clockwise"></i>
                 </button>
                 <button class="action-btn" onclick="toggleChatbot()" title="Close">
-                    <i class="bi bi-x"></i>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
         </div>

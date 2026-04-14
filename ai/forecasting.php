@@ -16,14 +16,15 @@ class AdvancedForecasting {
     public function calculateAdvancedForecast($product_id) {
         // Get comprehensive sales data for last 90 days
         $query = "SELECT 
-                    DATE(created_at) as sale_date,
-                    SUM(quantity) as daily_sales,
-                    COUNT(*) as transaction_count,
-                    AVG(quantity) as avg_transaction_size
-                  FROM sales 
-                  WHERE product_id = :pid 
-                  AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
-                  GROUP BY DATE(created_at)
+                    DATE(i.created_at) as sale_date,
+                    SUM(ii.quantity) as daily_sales,
+                    COUNT(DISTINCT i.id) as transaction_count,
+                    AVG(ii.quantity) as avg_transaction_size
+                  FROM invoice_items ii
+                  JOIN invoices i ON ii.invoice_id = i.id
+                  WHERE ii.product_id = :pid 
+                  AND i.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+                  GROUP BY DATE(i.created_at)
                   ORDER BY sale_date ASC";
         
         $stmt = $this->db->prepare($query);

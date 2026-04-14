@@ -508,8 +508,10 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            width: 85px;
+            width: 32px;
             height: 32px;
+            padding: 0;
+            border-radius: 6px;
         }
         
         .action-buttons .btn:hover {
@@ -956,7 +958,7 @@ $suppliers = $db->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover table-compact mb-0">
+                            <table class="table table-striped table-hover mb-0">
                                 <thead class="table-dark">
                                     <tr>
                                         <th style="color: white;">

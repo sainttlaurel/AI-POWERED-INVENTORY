@@ -7,19 +7,31 @@ requireLogin();
 $database = new Database();
 $db = $database->getConnection();
 
-// Check if QR code columns exist
+// Check if QR code columns exist — auto-create them if not (fixes missing setup_qr_features.php)
 $qr_columns_exist = false;
+$setup_message    = '';
 try {
     $stmt = $db->query("SHOW COLUMNS FROM products LIKE 'qr_code'");
     $qr_columns_exist = $stmt->rowCount() > 0;
 } catch (Exception $e) {
-    // Columns don't exist
+    $qr_columns_exist = false;
 }
 
-// If QR columns don't exist, redirect to setup
 if (!$qr_columns_exist) {
-    header("Location: setup_qr_features.php");
-    exit();
+    // Auto-migrate: add qr_code and qr_data columns silently
+    try {
+        $db->exec("ALTER TABLE products
+            ADD COLUMN IF NOT EXISTS qr_code  VARCHAR(255) NULL DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS qr_data  TEXT         NULL DEFAULT NULL");
+        $qr_columns_exist = true;
+        $setup_message = 'QR columns were automatically added to the products table.';
+    } catch (Exception $e) {
+        // Try adding columns one at a time (fallback for older MySQL)
+        try { $db->exec("ALTER TABLE products ADD COLUMN qr_code VARCHAR(255) NULL DEFAULT NULL"); } catch (Exception $e2) {}
+        try { $db->exec("ALTER TABLE products ADD COLUMN qr_data TEXT NULL DEFAULT NULL"); } catch (Exception $e3) {}
+        $qr_columns_exist = true;
+        $setup_message = 'QR Code columns initialised successfully.';
+    }
 }
 
 // Handle QR code actions
@@ -145,6 +157,14 @@ try {
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             <?php endif; ?>
+
+            <?php if ($setup_message): ?>
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="bi bi-info-circle"></i> <strong>Auto-Setup:</strong> <?php echo htmlspecialchars($setup_message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
 
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2"><i class="bi bi-qr-code"></i> QR Code Management</h1>
